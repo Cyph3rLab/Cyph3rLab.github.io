@@ -1,1 +1,5 @@
-# Cyph3rLab.github.io
+**Cyph3r** · 计算机网络专业，专注于网络协议分析与系统安全底层。
+
+研究 TCP/IP、Linux 内核、Windows 认证（NTLM/Kerberos）及企业内网安全架构。
+
+致力于从数据包流转到防御体系，构建完整的网络安全知识图谱。
