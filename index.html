@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>/sec/log — 网络安全学习笔记</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        /* === THEME TOKENS === */
+        :root[data-theme="dark"] {
+            --bg: #0c0b09;
+            --bg-elev: #14120e;
+            --bg-elev-2: #1c1a14;
+            --fg: #f0ead6;
+            --fg-dim: #c9c1ad;
+            --muted: #8a8275;
+            --accent: #f59e0b;
+            --accent-rgb: 245, 158, 11;
+            --accent-2: #06b6d4;
+            --accent-2-rgb: 6, 182, 212;
+            --border: rgba(240, 234, 214, 0.08);
+            --border-strong: rgba(240, 234, 214, 0.18);
+            --card: #15130e;
+            --code-bg: #060503;
+            --code-fg: #f0ead6;
+            --glow: rgba(245, 158, 11, 0.15);
+        }
+        :root[data-theme="light"] {
+            --bg: #f3ecdc;
+            --bg-elev: #faf3e1;
+            --bg-elev-2: #fffaee;
+            --fg: #1a1610;
+            --fg-dim: #3d362b;
+            --muted: #6b6358;
+            --accent: #c2410c;
+            --accent-rgb: 194, 65, 12;
+            --accent-2: #0e7490;
+            --accent-2-rgb: 14, 116, 144;
+            --border: rgba(26, 22, 16, 0.12);
+            --border-strong: rgba(26, 22, 16, 0.24);
+            --card: #fffaee;
+            --code-bg: #1a1610;
+            --code-fg: #f3ecdc;
+            --glow: rgba(194, 65, 12, 0.12);
+        }
+        :root[data-theme="cyber"] {
+            --bg: #02060a;
+            --bg-elev: #050d10;
+            --bg-elev-2: #071318;
+            --fg: #4eff96;
+            --fg-dim: #8affb8;
+            --muted: #2a8a5e;
+            --accent: #ffea00;
+            --accent-rgb: 255, 234, 0;
+            --accent-2: #ff10f0;
+            --accent-2-rgb: 255, 16, 240;
+            --border: rgba(78, 255, 150, 0.18);
+            --border-strong: rgba(78, 255, 150, 0.4);
+            --card: #050d10;
+            --code-bg: #000;
+            --code-fg: #4eff96;
+            --glow: rgba(78, 255, 150, 0.2);
+        }
+        * {
+            box-sizing: border-box;
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Space Grotesk', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            position: relative;
+        }
+        [data-theme="cyber"] body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(78, 255, 150, 0.025) 2px, rgba(78, 255, 150, 0.025) 3px);
+            z-index: 200;
+            mix-blend-mode: overlay;
+        }
+        body.theme-anim,
+        body.theme-anim *,
+        body.theme-anim *::before,
+        body.theme-anim *::after {
+            transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1), color 0.6s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.6s cubic-bezier(0.4, 0, 0.2, 1), fill 0.6s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .font-display {
+            font-family: 'Fraunces', serif;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* === PROGRESS BAR === */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            z-index: 100;
+            box-shadow: 0 0 12px var(--accent), 0 0 4px var(--accent);
+        }
+
+        /* === BACKGROUND GRID === */
+        .bg-grid {
+            background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 56px 56px;
+            background-position: center center;
+        }
+
+        /* === FLOATING DOTS === */
+        .float-dot {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.25;
+            animation: drift 16s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @keyframes drift {
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+            33% {
+                transform: translate(60px, -40px) scale(1.1);
+            }
+            66% {
+                transform: translate(-30px, 50px) scale(0.95);
+            }
+        }
+
+        /* === MOUSE GLOW === */
+        .mouse-glow {
+            position: absolute;
+            width: 700px;
+            height: 700px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(var(--accent-rgb), 0.12) 0%, transparent 60%);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            filter: blur(30px);
+            z-index: 1;
+        }
+
+        /* === TYPEWRITER CURSOR === */
+        .cursor::after {
+            content: '▌';
+            color: var(--accent);
+            animation: blink 1s steps(1) infinite;
+            margin-left: 4px;
+            font-weight: 400;
+        }
+        @keyframes blink {
+            0%,
+            50% {
+                opacity: 1;
+            }
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+        .logo-cursor {
+            display: inline-block;
+            width: 0.5em;
+            height: 1em;
+            background: var(--accent);
+            margin-left: 3px;
+            animation: blink 1.1s steps(1) infinite;
+            vertical-align: text-bottom;
+        }
+
+        /* === LINKS === */
+        .hover-link {
+            position: relative;
+            color: var(--fg-dim);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        .hover-link:hover {
+            color: var(--fg);
+        }
+        .hover-link::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -5px;
+            width: 0;
+            height: 1px;
+            background: var(--accent);
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hover-link:hover::after {
+            width: 100%;
+        }
+
+        /* === THEME TOGGLE === */
+        .theme-toggle {
+            display: inline-flex;
+            background: var(--bg-elev);
+            border: 1px solid var(--border-strong);
+            border-radius: 999px;
+            padding: 3px;
+            gap: 2px;
+        }
+        .theme-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 12px;
+        }
+        .theme-btn.active {
+            background: var(--accent);
+            color: var(--bg);
+            box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.5);
+        }
+        .theme-btn:hover:not(.active) {
+            color: var(--fg);
+            transform: scale(1.08);
+        }
+
+        /* === TAG === */
+        .tag {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--accent);
+            padding: 4px 9px;
+            border: 1px solid rgba(var(--accent-rgb), 0.5);
+            border-radius: 2px;
+            background: rgba(var(--accent-rgb), 0.08);
+            font-weight: 500;
+        }
+
+        /* === BUTTONS === */
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+            padding: 13px 22px;
+            border: none;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px -8px rgba(var(--accent-rgb), 0.6);
+        }
+        .btn-primary:hover::before {
+            transform: translateX(100%);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: var(--fg);
+            border: 1px solid var(--border-strong);
+            padding: 13px 22px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        /* === DIRECTION CARDS === */
+        .dir-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 28px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.45s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s ease;
+        }
+        .dir-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dir-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--border-strong);
+            box-shadow: 0 24px 48px -20px rgba(0, 0, 0, 0.45);
+        }
+        .dir-card:hover::before {
+            transform: scaleX(1);
+        }
+        .dir-card .card-icon {
+            font-size: 28px;
+            color: var(--accent);
+            margin-bottom: 12px;
+            display: block;
+        }
+        .dir-card h3 {
+            transition: color 0.3s ease;
+        }
+        .dir-card:hover h3 {
+            color: var(--accent);
+        }
+
+        /* === GOAL ITEM === */
+        .goal-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 18px 0;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .goal-item:last-child {
+            border-bottom: none;
+        }
+        .goal-item .goal-marker {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+            font-size: 18px;
+            font-weight: 700;
+            min-width: 32px;
+            line-height: 1.4;
+        }
+        .goal-item:hover {
+            padding-left: 12px;
+            border-bottom-color: var(--accent);
+        }
+        .goal-item:hover .goal-title {
+            color: var(--accent);
+        }
+        .goal-title {
+            transition: color 0.3s ease;
+        }
+
+        /* === SCROLLBAR === */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-strong);
+            border-radius: 5px;
+            border: 2px solid var(--bg);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+        ::selection {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        /* === REVEAL === */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1), transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* === MARQUEE === */
+        .marquee-wrap {
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .marquee {
+            display: inline-flex;
+            animation: scroll 40s linear infinite;
+            gap: 60px;
+            padding-right: 60px;
+        }
+        @keyframes scroll {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 768px) {
+            .dir-card {
+                padding: 22px;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PROGRESS BAR -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- MOUSE GLOW (hero only) -->
+    <div class="mouse-glow" id="mouseGlow"></div>
+
+    <!-- ===== NAV ===== -->
+    <nav style="position:fixed;top:0;left:0;right:0;z-index:50;padding:20px 28px;background:rgba(var(--bg-rgb),0.7);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;" id="nav">
+        <a href="#" style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;text-decoration:none;color:var(--fg);letter-spacing:-0.03em;display:flex;align-items:center;gap:2px;">
+            <span style="color:var(--muted);">/</span>sec<span style="color:var(--muted);">/</span>log
+            <span class="logo-cursor"></span>
+        </a>
+        <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:24px;font-family:'JetBrains Mono',monospace;font-size:13px;">
+                <a href="#hero" class="hover-link">首页</a>
+                <a href="#directions" class="hover-link">技术方向</a>
+                <a href="#goals" class="hover-link">学习目标</a>
+                <a href="#about" class="hover-link">关于</a>
+            </div>
+            <div class="theme-toggle" role="group" aria-label="主题切换">
+                <button class="theme-btn active" data-theme="dark" title="暗色" aria-label="暗色主题"><i class="fas fa-moon"></i></button>
+                <button class="theme-btn" data-theme="light" title="亮色" aria-label="亮色主题"><i class="fas fa-sun"></i></button>
+                <button class="theme-btn" data-theme="cyber" title="赛博" aria-label="赛博主题"><i class="fas fa-terminal"></i></button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== HERO ===== -->
+    <section id="hero" class="bg-grid" style="min-height:100vh;display:flex;align-items:center;padding:120px 28px 80px;position:relative;overflow:hidden;">
+        <!-- Floating dots -->
+        <div class="float-dot" style="width:300px;height:300px;background:var(--accent);top:-80px;right:-60px;opacity:0.12;"></div>
+        <div class="float-dot" style="width:200px;height:200px;background:var(--accent-2);bottom:20px;left:-40px;opacity:0.08;animation-delay:-6s;"></div>
+
+        <div style="max-width:1100px;margin:0 auto;width:100%;position:relative;z-index:2;">
+            <!-- Typewriter -->
+            <h1 style="font-family:'JetBrains Mono',monospace;font-weight:700;margin-bottom:20px;font-size:clamp(2.2rem,6.5vw,5.5rem);line-height:1.05;letter-spacing:-0.04em;">
+                <span style="color:var(--muted);">$</span>
+                <span id="typewriter" class="cursor"></span>
+            </h1>
+
+            <!-- Subtitle -->
+            <p class="font-display" style="font-size:clamp(1.6rem,4vw,3.2rem);font-style:italic;font-weight:400;color:var(--fg);line-height:1.3;margin-bottom:16px;">
+                深入理解网络通信与系统安全
+            </p>
+            <p style="font-size:clamp(0.95rem,1.4vw,1.2rem);max-width:680px;color:var(--muted);line-height:1.7;margin-bottom:24px;">
+                记录网络协议、操作系统、安全机制的学习过程。<br />
+                从数据包分析开始，逐步理解企业网络架构与安全体系。
+            </p>
+
+            <!-- Bio -->
+            <div style="max-width:600px;margin-bottom:32px;padding:20px 24px;background:var(--bg-elev);border-left:3px solid var(--accent);border-radius:2px;">
+                <p style="font-size:clamp(0.95rem,1.2vw,1.05rem);line-height:1.7;color:var(--fg-dim);margin:0;">
+                    我是 <span style="color:var(--fg);font-weight:600;">Cyph3r</span>，
+                    一名专注于网络与系统安全方向的学习者。
+                </p>
+                <p style="font-size:clamp(0.9rem,1.1vw,1rem);line-height:1.7;color:var(--muted);margin:8px 0 0 0;">
+                    目前主要研究 TCP/IP 协议、网络通信机制、Linux 与 Windows 系统安全，以及企业内网安全架构。
+                </p>
+            </div>
+
+            <!-- CTAs -->
+            <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:40px;">
+                <a href="#directions" class="btn-primary">
+                    了解技术方向 <i class="fas fa-arrow-right text-xs"></i>
+                </a>
+                <a href="#goals" class="btn-secondary">
+                    <i class="fas fa-graduation-cap text-xs"></i> 学习目标
+                </a>
+            </div>
+
+            <!-- Stats -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:24px;max-width:600px;">
+                <div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:clamp(1.8rem,3vw,2.8rem);color:var(--accent);">∞</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">数据包分析</div>
+                </div>
+                <div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:clamp(1.8rem,3vw,2.8rem);color:var(--accent);">L3→L7</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">协议栈深度</div>
+                </div>
+                <div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:clamp(1.8rem,3vw,2.8rem);color:var(--accent);">/var/log</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">系统日志</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== TECH MARQUEE ===== -->
+    <div style="padding:24px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg-elev);">
+        <div class="marquee-wrap">
+            <div class="marquee" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:400;color:var(--muted);letter-spacing:0.04em;">
+                <span>TCP/IP · 网络安全 · Linux 系统 · Windows 安全 · 网络工程</span>
+                <span>系统安全 · 协议分析 · 内网安全 · NTLM · Kerberos</span>
+                <span>Active Directory · 数据包分析 · 企业网络 · 安全架构</span>
+                <span>渗透测试 · 防御体系 · 身份认证 · 访问控制</span>
+                <span>TCP/IP · 网络安全 · Linux 系统 · Windows 安全 · 网络工程</span>
+                <span>系统安全 · 协议分析 · 内网安全 · NTLM · Kerberos</span>
+                <span>Active Directory · 数据包分析 · 企业网络 · 安全架构</span>
+                <span>渗透测试 · 防御体系 · 身份认证 · 访问控制</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 我的技术方向 ===== -->
+    <section id="directions" style="padding:80px 28px;max-width:1200px;margin:0 auto;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:48px;">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);font-weight:600;">//</span>
+            <h2 class="font-display" style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:700;margin:0;letter-spacing:-0.02em;">我的技术方向</h2>
+            <span style="flex:1;height:1px;background:var(--border);"></span>
+            <span class="tag" style="font-size:10px;">focus</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;">
+            <!-- 网络工程 -->
+            <div class="dir-card reveal">
+                <span class="card-icon"><i class="fas fa-network-wired"></i></span>
+                <h3 class="font-display" style="font-size:1.3rem;font-weight:700;margin:0 0 10px 0;">网络工程</h3>
+                <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:0;">
+                    TCP/IP 协议栈、Ethernet、ARP、VLAN、STP、路由交换基础，构建企业网络通信的底层认知。
+                </p>
+            </div>
+
+            <!-- 系统安全 -->
+            <div class="dir-card reveal">
+                <span class="card-icon"><i class="fas fa-shield-alt"></i></span>
+                <h3 class="font-display" style="font-size:1.3rem;font-weight:700;margin:0 0 10px 0;">系统安全</h3>
+                <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:0;">
+                    Linux 内核原理、Windows 安全机制、权限模型、认证体系（NTLM / Kerberos）、Active Directory 域安全。
+                </p>
+            </div>
+
+            <!-- 内网安全 -->
+            <div class="dir-card reveal">
+                <span class="card-icon"><i class="fas fa-building"></i></span>
+                <h3 class="font-display" style="font-size:1.3rem;font-weight:700;margin:0 0 10px 0;">企业内网安全</h3>
+                <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:0;">
+                    内网拓扑、身份认证架构、横向移动防御、日志审计、安全策略落地与攻防检测体系。
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 我的学习目标 ===== -->
+    <section id="goals" style="padding:80px 28px;max-width:1100px;margin:0 auto;border-top:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:48px;">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);font-weight:600;">//</span>
+            <h2 class="font-display" style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:700;margin:0;letter-spacing:-0.02em;">学习目标</h2>
+            <span style="flex:1;height:1px;background:var(--border);"></span>
+            <span class="tag" style="font-size:10px;">roadmap</span>
+        </div>
+
+        <div style="background:var(--bg-elev);border:1px solid var(--border);border-radius:4px;padding:8px 24px;">
+            <div class="goal-item">
+                <div class="goal-marker">01</div>
+                <div>
+                    <div class="goal-title font-display" style="font-size:1.15rem;font-weight:700;">从数据包到应用层</div>
+                    <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:4px 0 0 0;">掌握完整的网络通信过程，理解数据包在各层的封装、转发与解析。</p>
+                </div>
+            </div>
+            <div class="goal-item">
+                <div class="goal-marker">02</div>
+                <div>
+                    <div class="goal-title font-display" style="font-size:1.15rem;font-weight:700;">操作系统内核与安全机制</div>
+                    <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:4px 0 0 0;">深入 Linux 调度/内存/文件系统，理解 Windows 认证、权限与安全策略。</p>
+                </div>
+            </div>
+            <div class="goal-item">
+                <div class="goal-marker">03</div>
+                <div>
+                    <div class="goal-title font-display" style="font-size:1.15rem;font-weight:700;">企业级身份认证与访问控制</div>
+                    <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:4px 0 0 0;">掌握 NTLM、Kerberos、AD 域模型，理解企业环境中身份验证与授权的完整链路。</p>
+                </div>
+            </div>
+            <div class="goal-item">
+                <div class="goal-marker">04</div>
+                <div>
+                    <div class="goal-title font-display" style="font-size:1.15rem;font-weight:700;">安全防御与攻防检测体系</div>
+                    <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:4px 0 0 0;">构建从网络边界到主机层面的纵深防御思维，理解攻击手法与检测响应。</p>
+                </div>
+            </div>
+            <div class="goal-item" style="border-bottom:none;">
+                <div class="goal-marker">→</div>
+                <div>
+                    <div class="goal-title font-display" style="font-size:1.15rem;font-weight:700;color:var(--accent);">最终目标</div>
+                    <p style="font-size:0.92rem;color:var(--fg-dim);line-height:1.6;margin:4px 0 0 0;">
+                        建立从网络底层、操作系统、认证机制到安全防御的完整知识体系，成为理解底层原理的网络安全工程师。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 关于 / ABOUT ===== -->
+    <section id="about" style="padding:60px 28px 80px;max-width:900px;margin:0 auto;border-top:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);font-weight:600;">//</span>
+            <h2 class="font-display" style="font-size:clamp(1.6rem,2.6vw,2.4rem);font-weight:700;margin:0;letter-spacing:-0.02em;">关于</h2>
+            <span style="flex:1;height:1px;background:var(--border);"></span>
+        </div>
+        <div style="background:var(--bg-elev);border:1px solid var(--border);border-radius:4px;padding:32px 36px;">
+            <p style="font-size:1.05rem;line-height:1.8;color:var(--fg-dim);margin:0 0 16px 0;">
+                我是 <span style="color:var(--fg);font-weight:600;">Cyph3r</span>，
+                一名计算机网络专业的学生，致力于理解网络通信与系统安全的底层原理。
+            </p>
+            <p style="font-size:1rem;line-height:1.8;color:var(--muted);margin:0 0 16px 0;">
+                相比只关注漏洞利用，我更关注网络通信过程、数据包流转、操作系统机制、身份认证模型以及企业网络架构与攻防检测体系。
+            </p>
+            <p style="font-size:0.95rem;line-height:1.8;color:var(--muted);margin:0;">
+                通过持续学习和实验，逐步构建从物理层到应用层、从内核到安全策略的完整知识图谱。
+            </p>
+            <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+                <span class="tag" style="font-size:10px;"># 底层原理</span>
+                <span class="tag" style="font-size:10px;"># 网络安全</span>
+                <span class="tag" style="font-size:10px;"># 系统安全</span>
+                <span class="tag" style="font-size:10px;"># 网络工程</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer style="padding:32px 28px;border-top:1px solid var(--border);text-align:center;background:var(--bg-elev);">
+        <div style="max-width:1000px;margin:0 auto;">
+            <p style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);margin:0 0 6px 0;">
+                <span style="color:var(--accent);">$</span> echo <span style="color:var(--accent-2);">"从数据包到安全，持续学习."</span> | sudo tee /dev/stdout
+            </p>
+            <p style="font-size:13px;color:var(--muted);margin:0;">
+                © 2026 <span style="color:var(--fg);font-weight:500;">Cyph3r</span> · 网络安全学习笔记 · 无跟踪 · 无广告
+            </p>
+        </div>
+    </footer>
+
+    <!-- ===== JAVASCRIPT ===== -->
+    <script>
+        // === TYPEWRITER ===
+        const greetings = [
+            "hello, cyberspace.",
+            "you found /sec/log.",
+            "network security learner.",
+            "studying protocols and systems.",
+            "from packets to security."
+        ];
+        const typeEl = document.getElementById('typewriter');
+        let gIdx = 0,
+            cIdx = 0,
+            deleting = false;
+
+        function tick() {
+            const current = greetings[gIdx];
+            if (deleting) {
+                cIdx--;
+                typeEl.textContent = current.slice(0, cIdx);
+                if (cIdx === 0) {
+                    deleting = false;
+                    gIdx = (gIdx + 1) % greetings.length;
+                    setTimeout(tick, 400);
+                    return;
+                }
+                setTimeout(tick, 35);
+            } else {
+                cIdx++;
+                typeEl.textContent = current.slice(0, cIdx);
+                if (cIdx === current.length) {
+                    deleting = true;
+                    setTimeout(tick, 2200);
+                    return;
+                }
+                setTimeout(tick, 75 + Math.random() * 50);
+            }
+        }
+        tick();
+
+        // === READING PROGRESS BAR ===
+        const progressBar = document.getElementById('progressBar');
+
+        function updateProgress() {
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+            progressBar.style.width = progress + '%';
+        }
+        window.addEventListener('scroll', updateProgress, { passive: true });
+        updateProgress();
+
+        // === THEME TOGGLE (3-state with smooth transition) ===
+        const themeButtons = document.querySelectorAll('.theme-btn');
+        const root = document.documentElement;
+
+        function setTheme(theme, animate = true) {
+            if (animate) {
+                document.body.classList.add('theme-anim');
+                setTimeout(() => document.body.classList.remove('theme-anim'), 700);
+            }
+            root.setAttribute('data-theme', theme);
+            try {
+                localStorage.setItem('sec-log-theme', theme);
+            } catch (e) {}
+            themeButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+        }
+
+        themeButtons.forEach(btn => {
+            btn.addEventListener('click', () => setTheme(btn.dataset.theme));
+        });
+
+        let initialTheme = 'dark';
+        try {
+            const saved = localStorage.getItem('sec-log-theme');
+            if (saved && ['dark', 'light', 'cyber'].includes(saved)) initialTheme = saved;
+        } catch (e) {}
+        setTheme(initialTheme, false);
+
+        // === MOUSE GLOW (hero only) ===
+        const mouseGlow = document.getElementById('mouseGlow');
+        const hero = document.getElementById('hero');
+        hero.addEventListener('mousemove', (e) => {
+            const rect = hero.getBoundingClientRect();
+            mouseGlow.style.left = (e.clientX - rect.left) + 'px';
+            mouseGlow.style.top = (e.clientY - rect.top) + 'px';
+            mouseGlow.style.opacity = '1';
+        });
+        hero.addEventListener('mouseleave', () => {
+            mouseGlow.style.opacity = '0';
+        });
+
+        // === SCROLL REVEAL ===
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12, rootMargin: '0px 0px -80px 0px' });
+        document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+        // === KEYBOARD SHORTCUT: T to cycle theme ===
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 't' || e.key === 'T') {
+                const current = root.getAttribute('data-theme');
+                const order = ['dark', 'light', 'cyber'];
+                const next = order[(order.indexOf(current) + 1) % order.length];
+                setTheme(next);
+            }
+        });
+
+        // === BG GRID PARALLAX ===
+        window.addEventListener('scroll', () => {
+            const scrolled = window.scrollY;
+            const heroGrid = hero;
+            if (heroGrid && scrolled < window.innerHeight) {
+                heroGrid.style.backgroundPosition = `center ${scrolled * 0.3}px`;
+            }
+        }, { passive: true });
+
+        // Smooth nav anchor scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    e.preventDefault();
+                    const navHeight = document.getElementById('nav').offsetHeight + 16;
+                    const targetPos = target.getBoundingClientRect().top + window.scrollY - navHeight;
+                    window.scrollTo({ top: targetPos, behavior: 'smooth' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
