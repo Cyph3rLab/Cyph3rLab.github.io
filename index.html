@@ -390,6 +390,54 @@
             transition: color 0.3s ease;
         }
 
+        /* === SOCIAL ICON === */
+        .social-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            transition: color 0.3s ease, transform 0.3s ease;
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+        }
+        .social-link:hover {
+            color: var(--accent);
+            transform: translateY(-2px);
+            border-color: var(--border-strong);
+        }
+        .social-link i {
+            font-size: 16px;
+        }
+
+        /* === CONTACT PILL === */
+        .contact-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-elev);
+            border: 1px solid var(--border-strong);
+            border-radius: 999px;
+            padding: 8px 18px 8px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--fg-dim);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .contact-pill:hover {
+            border-color: var(--accent);
+            color: var(--fg);
+            box-shadow: 0 0 0 3px var(--glow);
+        }
+        .contact-pill i {
+            color: var(--accent);
+            font-size: 14px;
+        }
+
         /* === SCROLLBAR === */
         ::-webkit-scrollbar {
             width: 10px;
@@ -447,6 +495,12 @@
             .dir-card {
                 padding: 22px;
             }
+            .nav-links {
+                gap: 14px !important;
+            }
+            .social-link span {
+                display: none;
+            }
         }
         @media (prefers-reduced-motion: reduce) {
             *,
@@ -467,17 +521,22 @@
     <div class="mouse-glow" id="mouseGlow"></div>
 
     <!-- ===== NAV ===== -->
-    <nav style="position:fixed;top:0;left:0;right:0;z-index:50;padding:20px 28px;background:rgba(var(--bg-rgb),0.7);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;" id="nav">
+    <nav style="position:fixed;top:0;left:0;right:0;z-index:50;padding:16px 28px;background:rgba(var(--bg-rgb),0.7);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;" id="nav">
         <a href="#" style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;text-decoration:none;color:var(--fg);letter-spacing:-0.03em;display:flex;align-items:center;gap:2px;">
             <span style="color:var(--muted);">/</span>sec<span style="color:var(--muted);">/</span>log
             <span class="logo-cursor"></span>
         </a>
-        <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
-            <div style="display:flex;align-items:center;gap:24px;font-family:'JetBrains Mono',monospace;font-size:13px;">
+        <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+            <div class="nav-links" style="display:flex;align-items:center;gap:20px;font-family:'JetBrains Mono',monospace;font-size:13px;">
                 <a href="#hero" class="hover-link">首页</a>
                 <a href="#directions" class="hover-link">技术方向</a>
                 <a href="#goals" class="hover-link">学习目标</a>
                 <a href="#about" class="hover-link">关于</a>
+                <!-- GitHub 导航链接 -->
+                <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="social-link" style="border:none;padding:4px 6px;" aria-label="GitHub">
+                    <i class="fab fa-github"></i>
+                    <span style="font-size:12px;font-weight:500;">GitHub</span>
+                </a>
             </div>
             <div class="theme-toggle" role="group" aria-label="主题切换">
                 <button class="theme-btn active" data-theme="dark" title="暗色" aria-label="暗色主题"><i class="fas fa-moon"></i></button>
@@ -510,7 +569,7 @@
             </p>
 
             <!-- Bio -->
-            <div style="max-width:600px;margin-bottom:32px;padding:20px 24px;background:var(--bg-elev);border-left:3px solid var(--accent);border-radius:2px;">
+            <div style="max-width:600px;margin-bottom:28px;padding:20px 24px;background:var(--bg-elev);border-left:3px solid var(--accent);border-radius:2px;">
                 <p style="font-size:clamp(0.95rem,1.2vw,1.05rem);line-height:1.7;color:var(--fg-dim);margin:0;">
                     我是 <span style="color:var(--fg);font-weight:600;">Cyph3r</span>，
                     一名专注于网络与系统安全方向的学习者。
@@ -520,13 +579,23 @@
                 </p>
             </div>
 
-            <!-- CTAs -->
-            <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:40px;">
+            <!-- CTAs + Contact -->
+            <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:40px;align-items:center;">
                 <a href="#directions" class="btn-primary">
                     了解技术方向 <i class="fas fa-arrow-right text-xs"></i>
                 </a>
                 <a href="#goals" class="btn-secondary">
                     <i class="fas fa-graduation-cap text-xs"></i> 学习目标
+                </a>
+                <!-- 邮箱联系方式 -->
+                <a href="mailto:cyph3r1ab@outlook.com" class="contact-pill">
+                    <i class="fas fa-envelope"></i>
+                    cyph3r1ab@outlook.com
+                </a>
+                <!-- GitHub 链接 (移动端显示图标) -->
+                <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="contact-pill" style="gap:8px;">
+                    <i class="fab fa-github"></i>
+                    <span class="social-label" style="font-size:12px;">Cyph3rLab</span>
                 </a>
             </div>
 
@@ -668,10 +737,21 @@
             <p style="font-size:1rem;line-height:1.8;color:var(--muted);margin:0 0 16px 0;">
                 相比只关注漏洞利用，我更关注网络通信过程、数据包流转、操作系统机制、身份认证模型以及企业网络架构与攻防检测体系。
             </p>
-            <p style="font-size:0.95rem;line-height:1.8;color:var(--muted);margin:0;">
+            <p style="font-size:0.95rem;line-height:1.8;color:var(--muted);margin:0 0 24px 0;">
                 通过持续学习和实验，逐步构建从物理层到应用层、从内核到安全策略的完整知识图谱。
             </p>
-            <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+            <!-- 联系方式 -->
+            <div style="display:flex;flex-wrap:wrap;gap:16px;padding-top:20px;border-top:1px solid var(--border);">
+                <a href="mailto:cyph3r1ab@outlook.com" class="contact-pill" style="font-size:13px;padding:10px 20px;">
+                    <i class="fas fa-envelope"></i>
+                    cyph3r1ab@outlook.com
+                </a>
+                <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="contact-pill" style="font-size:13px;padding:10px 20px;">
+                    <i class="fab fa-github"></i>
+                    github.com/Cyph3rLab
+                </a>
+            </div>
+            <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">
                 <span class="tag" style="font-size:10px;"># 底层原理</span>
                 <span class="tag" style="font-size:10px;"># 网络安全</span>
                 <span class="tag" style="font-size:10px;"># 系统安全</span>
@@ -686,9 +766,17 @@
             <p style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);margin:0 0 6px 0;">
                 <span style="color:var(--accent);">$</span> echo <span style="color:var(--accent-2);">"从数据包到安全，持续学习."</span> | sudo tee /dev/stdout
             </p>
-            <p style="font-size:13px;color:var(--muted);margin:0;">
+            <p style="font-size:13px;color:var(--muted);margin:0 0 10px 0;">
                 © 2026 <span style="color:var(--fg);font-weight:500;">Cyph3r</span> · 网络安全学习笔记 · 无跟踪 · 无广告
             </p>
+            <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-top:6px;">
+                <a href="mailto:cyph3r1ab@outlook.com" style="color:var(--muted);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:12px;transition:color 0.3s ease;">
+                    <i class="fas fa-envelope" style="margin-right:6px;"></i>cyph3r1ab@outlook.com
+                </a>
+                <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:12px;transition:color 0.3s ease;">
+                    <i class="fab fa-github" style="margin-right:6px;"></i>Cyph3rLab
+                </a>
+            </div>
         </div>
     </footer>
 
