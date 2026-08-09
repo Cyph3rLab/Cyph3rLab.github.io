@@ -9,7 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
-        /* === THEME TOKENS (保持不变) === */
+        /* ============================================================
+                   THEME TOKENS
+                   ============================================================ */
         :root[data-theme="dark"] {
             --bg: #0c0b09;
             --bg-elev: #14120e;
@@ -70,8 +72,14 @@
             --nav-bg: rgba(2, 6, 10, 0.8);
             --nav-shadow: 0 4px 30px rgba(78, 255, 150, 0.08);
         }
+
+        /* ============================================================
+                   RESET & BASE
+                   ============================================================ */
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
         html {
             scroll-behavior: smooth;
@@ -86,6 +94,7 @@
             position: relative;
             opacity: 0;
             animation: pageFadeIn 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            line-height: 1.6;
         }
         @keyframes pageFadeIn {
             0% {
@@ -107,12 +116,18 @@
             z-index: 200;
             mix-blend-mode: overlay;
         }
+
         body.theme-anim,
         body.theme-anim *,
         body.theme-anim *::before,
         body.theme-anim *::after {
-            transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1), color 0.6s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.6s cubic-bezier(0.4, 0, 0.2, 1), fill 0.6s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                fill 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
+
         .font-display {
             font-family: 'Fraunces', serif;
         }
@@ -120,7 +135,9 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* === PROGRESS BAR === */
+        /* ============================================================
+                   PROGRESS BAR
+                   ============================================================ */
         .progress-bar {
             position: fixed;
             top: 0;
@@ -133,14 +150,19 @@
             transition: width 0.1s linear;
         }
 
-        /* === BACKGROUND GRID === */
+        /* ============================================================
+                   BACKGROUND GRID
+                   ============================================================ */
         .bg-grid {
-            background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
             background-size: 56px 56px;
             background-position: center center;
         }
 
-        /* === FLOATING DOTS === */
+        /* ============================================================
+                   FLOATING DOTS
+                   ============================================================ */
         .float-dot {
             position: absolute;
             border-radius: 50%;
@@ -181,7 +203,9 @@
             }
         }
 
-        /* === MOUSE GLOW === */
+        /* ============================================================
+                   MOUSE GLOW
+                   ============================================================ */
         .mouse-glow {
             position: absolute;
             width: 700px;
@@ -196,7 +220,9 @@
             z-index: 1;
         }
 
-        /* === TYPEWRITER CURSOR (hero) === */
+        /* ============================================================
+                   TYPEWRITER CURSOR
+                   ============================================================ */
         .cursor::after {
             content: '▌';
             color: var(--accent);
@@ -224,7 +250,9 @@
             vertical-align: text-bottom;
         }
 
-        /* === LINKS === */
+        /* ============================================================
+                   LINKS
+                   ============================================================ */
         .hover-link {
             position: relative;
             color: var(--fg-dim);
@@ -248,7 +276,9 @@
             width: 100%;
         }
 
-        /* === THEME TOGGLE === */
+        /* ============================================================
+                   THEME TOGGLE
+                   ============================================================ */
         .theme-toggle {
             display: inline-flex;
             background: var(--bg-elev);
@@ -256,6 +286,7 @@
             border-radius: 999px;
             padding: 3px;
             gap: 2px;
+            flex-shrink: 0;
         }
         .theme-btn {
             width: 32px;
@@ -281,7 +312,9 @@
             transform: scale(1.08);
         }
 
-        /* === TAG === */
+        /* ============================================================
+                   TAG
+                   ============================================================ */
         .tag {
             display: inline-block;
             font-family: 'JetBrains Mono', monospace;
@@ -306,7 +339,9 @@
             }
         }
 
-        /* === BUTTONS === */
+        /* ============================================================
+                   BUTTONS
+                   ============================================================ */
         .btn-primary {
             background: var(--accent);
             color: var(--bg);
@@ -382,151 +417,144 @@
             transform: translateY(-2px);
         }
 
-        /* === DIRECTION CARDS === */
+        /* ============================================================
+                   DIRECTION CARDS — 优化版 (干净、精致)
+                   ============================================================ */
         .dir-card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 28px;
+            border-radius: 8px;
+            padding: 32px 28px 28px;
             position: relative;
             overflow: hidden;
-            transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.45s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s ease;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                border-color 0.4s ease,
+                box-shadow 0.4s ease,
+                background 0.4s ease;
             will-change: transform;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
         }
-        .dir-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, var(--accent), var(--accent-2));
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .dir-card::after {
-            content: '';
-            position: absolute;
-            inset: -1px;
-            border-radius: 4px;
-            background: linear-gradient(135deg, transparent 40%, rgba(var(--accent-rgb), 0.06), transparent 60%);
-            opacity: 0;
-            transition: opacity 0.6s ease;
-            pointer-events: none;
-            z-index: 0;
-        }
+
         .dir-card:hover {
-            transform: translateY(-6px);
-            border-color: var(--border-strong);
-            box-shadow: 0 24px 48px -20px rgba(0, 0, 0, 0.45);
+            transform: translateY(-8px);
+            border-color: var(--accent);
+            background: var(--bg-elev-2);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(var(--accent-rgb), 0.2);
         }
-        .dir-card:hover::before {
-            transform: scaleX(1);
+
+        /* 图标容器 */
+        .card-icon-wrap {
+            width: 52px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(var(--accent-rgb), 0.08);
+            margin-bottom: 16px;
+            transition: background 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .dir-card:hover::after {
-            opacity: 1;
-        }
-        .dir-card .card-icon {
-            font-size: 28px;
+        .card-icon-wrap i {
+            font-size: 24px;
             color: var(--accent);
-            margin-bottom: 12px;
-            display: inline-block;
-            animation: iconFloat 3.2s ease-in-out infinite;
-            transition: transform 0.3s ease;
-            will-change: transform;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .dir-card:nth-child(2) .card-icon {
-            animation-delay: 0.6s;
+        .dir-card:hover .card-icon-wrap {
+            background: rgba(var(--accent-rgb), 0.16);
+            transform: scale(1.05);
         }
-        .dir-card:nth-child(3) .card-icon {
-            animation-delay: 1.2s;
+        .dir-card:hover .card-icon-wrap i {
+            transform: scale(1.1);
         }
-        .dir-card:hover .card-icon {
-            animation-play-state: paused;
-            transform: scale(1.15) rotate(-4deg);
-        }
-        @keyframes iconFloat {
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-6px);
-            }
-        }
+
         .dir-card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 0 10px 0;
             transition: color 0.3s ease;
-            position: relative;
-            z-index: 1;
+            letter-spacing: -0.02em;
         }
         .dir-card:hover h3 {
             color: var(--accent);
         }
+
         .dir-card p {
-            position: relative;
-            z-index: 1;
+            font-size: 0.92rem;
+            color: var(--muted);
+            line-height: 1.7;
+            margin: 0 0 16px 0;
+            flex: 1;
         }
 
-        /* === GOAL ITEM === */
+        /* 卡片底部标签 */
+        .card-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            margin-top: 4px;
+        }
+        .dir-card:hover .card-tag {
+            color: var(--accent);
+            border-color: rgba(var(--accent-rgb), 0.3);
+            background: rgba(var(--accent-rgb), 0.05);
+        }
+
+        /* ============================================================
+                   GOAL ITEM — 优化版 (悬停动画统一)
+                   ============================================================ */
         .goal-item {
             display: flex;
             align-items: flex-start;
             gap: 16px;
             padding: 18px 0;
             border-bottom: 1px solid var(--border);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             opacity: 0;
             transform: translateX(-20px);
-            transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1), transform 0.7s cubic-bezier(0.4, 0, 0.2, 1), padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s ease;
-        }
-        .goal-item:last-child {
-            border-bottom: none;
+            transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.3s ease;
         }
         .goal-item.visible {
             opacity: 1;
             transform: translateX(0);
         }
-        .goal-item:nth-child(1) {
-            transition-delay: 0.05s;
-        }
-        .goal-item:nth-child(2) {
-            transition-delay: 0.12s;
-        }
-        .goal-item:nth-child(3) {
-            transition-delay: 0.19s;
-        }
-        .goal-item:nth-child(4) {
-            transition-delay: 0.26s;
-        }
-        .goal-item:nth-child(5) {
-            transition-delay: 0.33s;
+
+        .goal-item:hover {
+            border-bottom-color: var(--accent);
         }
 
-        .goal-item .goal-marker {
+        .goal-marker {
             font-family: 'JetBrains Mono', monospace;
             color: var(--accent);
             font-size: 18px;
             font-weight: 700;
             min-width: 32px;
             line-height: 1.4;
-            transition: transform 0.3s ease;
-        }
-        .goal-item:hover {
-            padding-left: 12px;
-            border-bottom-color: var(--accent);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .goal-item:hover .goal-marker {
-            transform: scale(1.2) translateX(4px);
+            transform: scale(1.15) translateX(6px);
+        }
+
+        .goal-title {
+            transition: color 0.3s ease;
         }
         .goal-item:hover .goal-title {
             color: var(--accent);
         }
-        .goal-title {
-            transition: color 0.3s ease;
-        }
 
-        /* === SOCIAL LINK === */
+        /* ============================================================
+                   SOCIAL LINK
+                   ============================================================ */
         .social-link {
             display: inline-flex;
             align-items: center;
@@ -553,7 +581,9 @@
             transform: scale(1.15);
         }
 
-        /* === CONTACT PILL === */
+        /* ============================================================
+                   CONTACT PILL
+                   ============================================================ */
         .contact-pill {
             display: inline-flex;
             align-items: center;
@@ -583,7 +613,9 @@
             transform: scale(1.15) rotate(-6deg);
         }
 
-        /* === SCROLLBAR === */
+        /* ============================================================
+                   SCROLLBAR
+                   ============================================================ */
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -605,11 +637,14 @@
             color: var(--bg);
         }
 
-        /* === REVEAL === */
+        /* ============================================================
+                   REVEAL
+                   ============================================================ */
         .reveal {
             opacity: 0;
             transform: translateY(35px) scale(0.98);
-            transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1), transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .reveal.visible {
             opacity: 1;
@@ -625,11 +660,16 @@
             transition-delay: 0.25s;
         }
 
-        /* === ABOUT CARD === */
+        /* ============================================================
+                   ABOUT CARD
+                   ============================================================ */
         .about-card.reveal {
             transition-delay: 0.05s;
             transform: translateY(40px) scale(0.97);
-            transition: opacity 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.4s ease, box-shadow 0.4s ease;
+            transition: opacity 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+                transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+                border-color 0.4s ease,
+                box-shadow 0.4s ease;
         }
         .about-card.reveal.visible {
             transform: translateY(0) scale(1);
@@ -639,7 +679,9 @@
             box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.3);
         }
 
-        /* === MARQUEE === */
+        /* ============================================================
+                   MARQUEE
+                   ============================================================ */
         .marquee-wrap {
             overflow: hidden;
             white-space: nowrap;
@@ -659,7 +701,9 @@
             }
         }
 
-        /* === NAV === */
+        /* ============================================================
+                   NAV
+                   ============================================================ */
         #nav {
             transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
             background: var(--nav-bg);
@@ -673,7 +717,9 @@
             border-bottom-color: var(--border-strong);
         }
 
-        /* === STATS === */
+        /* ============================================================
+                   STATS
+                   ============================================================ */
         .stat-number {
             font-family: 'JetBrains Mono', monospace;
             font-weight: 700;
@@ -683,7 +729,9 @@
             display: inline-block;
         }
 
-        /* === HERO TITLE GLOW === */
+        /* ============================================================
+                   HERO TITLE GLOW
+                   ============================================================ */
         .hero-title-wrap {
             position: relative;
             display: inline-block;
@@ -711,7 +759,115 @@
             }
         }
 
-        /* === FOOTER TYPING CURSOR === */
+        /* ============================================================
+                   ROADMAP
+                   ============================================================ */
+        .roadmap-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 18px;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        .roadmap-item:last-child {
+            border-bottom: none;
+        }
+        .roadmap-item .status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 58px;
+            flex-shrink: 0;
+            padding-top: 2px;
+        }
+        .roadmap-item .status.done {
+            color: #22c55e;
+        }
+        .roadmap-item .status.in-progress {
+            color: var(--accent);
+        }
+        .roadmap-item .status.plan {
+            color: var(--muted);
+        }
+        .roadmap-item .content {
+            flex: 1;
+        }
+        .roadmap-item .content h4 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin: 0 0 2px 0;
+        }
+        .roadmap-item .content p {
+            font-size: 0.88rem;
+            color: var(--muted);
+            margin: 0;
+        }
+
+        /* 高亮进行中的条目 */
+        .roadmap-item.highlight {
+            background: rgba(var(--accent-rgb), 0.04);
+            margin: 0 -16px;
+            padding-left: 16px;
+            padding-right: 16px;
+            border-radius: 3px;
+        }
+        .roadmap-item.highlight .content h4 {
+            color: var(--accent);
+        }
+
+        /* ============================================================
+                   METHODOLOGY
+                   ============================================================ */
+        .method-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 24px 28px;
+            margin-top: 24px;
+            transition: border-color 0.3s ease;
+        }
+        .method-card:hover {
+            border-color: var(--border-strong);
+        }
+        .method-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+        .method-step:last-child {
+            border-bottom: none;
+        }
+        .method-step .step-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--accent);
+            font-size: 14px;
+            min-width: 28px;
+        }
+        .method-step .step-desc {
+            font-size: 0.95rem;
+            color: var(--fg-dim);
+        }
+        .method-example {
+            background: var(--bg-elev);
+            border-left: 3px solid var(--accent);
+            padding: 16px 20px;
+            margin-top: 16px;
+            border-radius: 2px;
+        }
+        .method-example code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent);
+        }
+
+        /* ============================================================
+                   FOOTER
+                   ============================================================ */
         #footer-cursor {
             display: inline-block;
             width: 1ch;
@@ -728,7 +884,6 @@
             animation: none;
         }
 
-        /* === FOOTER === */
         footer a {
             transition: color 0.3s ease, transform 0.3s ease;
             display: inline-block;
@@ -737,38 +892,102 @@
             color: var(--accent) !important;
             transform: translateY(-1px);
         }
-        .footer-command-wrap {
-            display: inline-flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 2px;
-            min-height: 1.6em;
-        }
 
-        /* === RESPONSIVE === */
+        /* ============================================================
+                   RESPONSIVE
+                   ============================================================ */
         @media (max-width: 768px) {
             .dir-card {
-                padding: 22px;
+                padding: 24px 20px;
             }
+            .card-icon-wrap {
+                width: 44px;
+                height: 44px;
+            }
+            .card-icon-wrap i {
+                font-size: 20px;
+            }
+
             .nav-links {
-                gap: 14px !important;
+                gap: 12px !important;
+            }
+            .nav-links a {
+                font-size: 12px !important;
             }
             .social-link span {
                 display: none;
             }
+
             .hero-title-wrap::before {
                 display: none;
             }
+
             .goal-item {
                 padding: 14px 0;
             }
+
             .about-card.reveal {
                 transform: translateY(30px);
             }
-            .footer-command-wrap {
-                font-size: 13px;
+
+            .roadmap-item {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .roadmap-item .status {
+                min-width: auto;
+                font-size: 11px;
+            }
+            .roadmap-item.highlight {
+                margin: 0 -8px;
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+
+            .method-step {
+                padding: 6px 0;
+            }
+            .method-step .step-desc {
+                font-size: 0.88rem;
+            }
+            .method-example {
+                padding: 12px 16px;
             }
         }
+
+        @media (max-width: 480px) {
+            #nav {
+                padding: 12px 16px !important;
+            }
+            .nav-links {
+                gap: 8px !important;
+            }
+            .nav-links a {
+                font-size: 11px !important;
+            }
+            .theme-btn {
+                width: 28px;
+                height: 28px;
+                font-size: 10px;
+            }
+            .btn-primary,
+            .btn-secondary {
+                padding: 10px 16px;
+                font-size: 11px;
+            }
+            .contact-pill {
+                font-size: 11px;
+                padding: 6px 12px 6px 10px;
+            }
+            .goal-marker {
+                font-size: 16px;
+                min-width: 26px;
+            }
+            .goal-title {
+                font-size: 1rem !important;
+            }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             *,
             *::before,
@@ -799,23 +1018,26 @@
 </head>
 <body>
 
-    <!-- PROGRESS BAR -->
+    <!-- ===== PROGRESS BAR ===== -->
     <div class="progress-bar" id="progressBar"></div>
 
-    <!-- MOUSE GLOW -->
+    <!-- ===== MOUSE GLOW ===== -->
     <div class="mouse-glow" id="mouseGlow"></div>
 
-    <!-- ===== NAV ===== -->
-    <nav id="nav" style="position:fixed;top:0;left:0;right:0;z-index:50;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-        <a href="#" style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;text-decoration:none;color:var(--fg);letter-spacing:-0.03em;display:flex;align-items:center;gap:2px;">
+    <!-- ============================================================
+    NAV
+    ============================================================ -->
+    <nav id="nav" style="position:fixed;top:0;left:0;right:0;z-index:50;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <a href="#" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;text-decoration:none;color:var(--fg);letter-spacing:-0.03em;display:flex;align-items:center;gap:2px;flex-shrink:0;">
             <span style="color:var(--muted);">/</span>sec<span style="color:var(--muted);">/</span>log
             <span class="logo-cursor"></span>
         </a>
-        <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
-            <div class="nav-links" style="display:flex;align-items:center;gap:20px;font-family:'JetBrains Mono',monospace;font-size:13px;">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <div class="nav-links" style="display:flex;align-items:center;gap:18px;font-family:'JetBrains Mono',monospace;font-size:13px;">
                 <a href="#hero" class="hover-link">首页</a>
                 <a href="#directions" class="hover-link">技术方向</a>
                 <a href="#goals" class="hover-link">学习目标</a>
+                <a href="#roadmap" class="hover-link">路线图</a>
                 <a href="#about" class="hover-link">关于</a>
                 <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="social-link" style="border:none;padding:4px 6px;" aria-label="GitHub">
                     <i class="fab fa-github"></i>
@@ -830,7 +1052,9 @@
         </div>
     </nav>
 
-    <!-- ===== HERO ===== -->
+    <!-- ============================================================
+    HERO
+    ============================================================ -->
     <section id="hero" class="bg-grid" style="min-height:100vh;display:flex;align-items:center;padding:120px 28px 80px;position:relative;overflow:hidden;">
         <div class="float-dot" style="width:340px;height:340px;background:var(--accent);top:-100px;right:-80px;opacity:0.10;"></div>
         <div class="float-dot" style="width:220px;height:220px;background:var(--accent-2);bottom:30px;left:-50px;opacity:0.07;animation-delay:-6s;"></div>
@@ -845,38 +1069,37 @@
                 </h1>
             </div>
 
-            <p class="font-display" style="font-size:clamp(1.6rem,4vw,3.2rem);font-style:italic;font-weight:400;color:var(--fg);line-height:1.3;margin-bottom:16px;">
-                深入理解网络通信与系统安全
+            <p class="font-display" style="font-size:clamp(1.4rem,3.6vw,2.8rem);font-style:italic;font-weight:400;color:var(--fg);line-height:1.3;margin-bottom:14px;">
+                企业网络安全与内网渗透技术研究者
             </p>
             <p style="font-size:clamp(0.95rem,1.4vw,1.2rem);max-width:680px;color:var(--muted);line-height:1.7;margin-bottom:24px;">
-                记录网络协议、操作系统、安全机制的学习过程。<br />
-                从数据包分析开始，逐步理解企业网络架构与安全体系。
+                致力于构建从协议原理到攻防对抗的完整知识体系。<br />
+                当前专注：TCP/IP 协议栈、内网渗透、Windows 域安全与红队攻击技术。
             </p>
 
             <div style="max-width:600px;margin-bottom:28px;padding:20px 24px;background:var(--bg-elev);border-left:3px solid var(--accent);border-radius:2px;transition:border-color 0.3s ease;">
                 <p style="font-size:clamp(0.95rem,1.2vw,1.05rem);line-height:1.7;color:var(--fg-dim);margin:0;">
-                    我是 <span style="color:var(--fg);font-weight:600;">Cyph3r</span>，
-                    一名专注于网络与系统安全方向的学习者。
+                    <span style="color:var(--fg);font-weight:600;">Cyph3r</span> · 协议分析与内网渗透实践者
                 </p>
                 <p style="font-size:clamp(0.9rem,1.1vw,1rem);line-height:1.7;color:var(--muted);margin:8px 0 0 0;">
-                    目前主要研究 TCP/IP 协议、网络通信机制、Linux 与 Windows 系统安全，以及企业内网安全架构。
+                    系统化研究 TCP/IP 协议栈、Windows 认证体系与红队攻击技术，持续构建深度知识图谱。
                 </p>
             </div>
 
-            <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:40px;align-items:center;">
+            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:40px;align-items:center;">
                 <a href="#directions" class="btn-primary" id="btnExplore">
-                    了解技术方向 <i class="fas fa-arrow-right text-xs"></i>
+                    了解技术方向 <i class="fas fa-arrow-right"></i>
                 </a>
-                <a href="#goals" class="btn-secondary">
-                    <i class="fas fa-graduation-cap text-xs"></i> 学习目标
+                <a href="#roadmap" class="btn-secondary">
+                    <i class="fas fa-road"></i> 学习路线图
                 </a>
                 <a href="mailto:cyph3r1ab@outlook.com" class="contact-pill">
                     <i class="fas fa-envelope"></i>
                     cyph3r1ab@outlook.com
                 </a>
-                <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="contact-pill" style="gap:8px;">
+                <a href="https://github.com/Cyph3rLab/Network-Engineering-Notes" target="_blank" rel="noopener" class="contact-pill" style="gap:8px;">
                     <i class="fab fa-github"></i>
-                    <span class="social-label" style="font-size:12px;">Cyph3rLab</span>
+                    <span style="font-size:12px;">项目仓库</span>
                 </a>
             </div>
 
@@ -897,7 +1120,9 @@
         </div>
     </section>
 
-    <!-- ===== TECH MARQUEE ===== -->
+    <!-- ============================================================
+    TECH MARQUEE
+    ============================================================ -->
     <div style="padding:24px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg-elev);">
         <div class="marquee-wrap">
             <div class="marquee" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:400;color:var(--muted);letter-spacing:0.04em;">
@@ -913,7 +1138,9 @@
         </div>
     </div>
 
-    <!-- ===== 我的技术方向 ===== -->
+    <!-- ============================================================
+    我的技术方向 (优化版)
+    ============================================================ -->
     <section id="directions" style="padding:80px 28px;max-width:1200px;margin:0 auto;">
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:48px;">
             <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);font-weight:600;">//</span>
@@ -923,39 +1150,162 @@
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;">
+            <!-- 卡片 1 -->
             <div class="dir-card reveal">
-                <span class="card-icon"><i class="fas fa-network-wired"></i></span>
-                <h3 class="font-display" style="font-size:1.3rem;font-weight:700;margin:0 0 10px 0;">网络工程</h3>
-                <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:0;">
-                    TCP/IP 协议栈、Ethernet、ARP、VLAN、STP、路由交换基础，构建企业网络通信的底层认知。
-                </p>
+                <div class="card-icon-wrap">
+                    <i class="fas fa-network-wired"></i>
+                </div>
+                <h3 class="font-display">网络工程</h3>
+                <p>TCP/IP 协议栈、Ethernet、ARP、VLAN、STP、路由交换基础，构建企业网络通信的底层认知。</p>
+                <span class="card-tag"># 网络基础</span>
             </div>
 
+            <!-- 卡片 2 -->
             <div class="dir-card reveal">
-                <span class="card-icon"><i class="fas fa-shield-alt"></i></span>
-                <h3 class="font-display" style="font-size:1.3rem;font-weight:700;margin:0 0 10px 0;">系统安全</h3>
-                <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:0;">
-                    Linux 内核原理、Windows 安全机制、权限模型、认证体系（NTLM / Kerberos）、Active Directory 域安全。
-                </p>
+                <div class="card-icon-wrap">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3 class="font-display">系统安全</h3>
+                <p>Linux 内核原理、Windows 安全机制、权限模型、认证体系（NTLM / Kerberos）、Active Directory 域安全。</p>
+                <span class="card-tag"># 操作系统</span>
             </div>
 
+            <!-- 卡片 3 -->
             <div class="dir-card reveal">
-                <span class="card-icon"><i class="fas fa-building"></i></span>
-                <h3 class="font-display" style="font-size:1.3rem;font-weight:700;margin:0 0 10px 0;">企业内网安全</h3>
-                <p style="font-size:0.92rem;color:var(--muted);line-height:1.6;margin:0;">
-                    内网拓扑、身份认证架构、横向移动防御、日志审计、安全策略落地与攻防检测体系。
-                </p>
+                <div class="card-icon-wrap">
+                    <i class="fas fa-building"></i>
+                </div>
+                <h3 class="font-display">企业内网安全</h3>
+                <p>内网拓扑、身份认证架构、横向移动防御、日志审计、安全策略落地与攻防检测体系。</p>
+                <span class="card-tag"># 内网防御</span>
             </div>
         </div>
     </section>
 
-    <!-- ===== 我的学习目标 ===== -->
+    <!-- ============================================================
+    学习路线图 (无 Emoji)
+    ============================================================ -->
+    <section id="roadmap" style="padding:80px 28px;max-width:1100px;margin:0 auto;border-top:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:48px;">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);font-weight:600;">//</span>
+            <h2 class="font-display" style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:700;margin:0;letter-spacing:-0.02em;">学习路线图</h2>
+            <span style="flex:1;height:1px;background:var(--border);"></span>
+            <span class="tag" style="font-size:10px;">roadmap</span>
+        </div>
+
+        <div style="background:var(--bg-elev);border:1px solid var(--border);border-radius:4px;padding:8px 28px;">
+            <!-- v1.0 -->
+            <div class="roadmap-item">
+                <span class="status done">已完成</span>
+                <div class="content">
+                    <h4>v1.0 网络基础与协议分析</h4>
+                    <p>TCP/IP 协议栈、Ethernet、ARP、ICMP、VLAN、STP、路由交换基础</p>
+                </div>
+            </div>
+            <!-- v1.5 -->
+            <div class="roadmap-item">
+                <span class="status done">已完成</span>
+                <div class="content">
+                    <h4>v1.5 网络协议攻击实战</h4>
+                    <p>ARP 欺骗、DNS 欺骗、TCP 劫持、网络层攻击与防御</p>
+                </div>
+            </div>
+            <!-- v2.0 进行中 (高亮) -->
+            <div class="roadmap-item highlight">
+                <span class="status in-progress">进行中</span>
+                <div class="content">
+                    <h4>v2.0 内网渗透实战</h4>
+                    <p>内网信息收集、横向移动、权限维持、域渗透基础</p>
+                </div>
+            </div>
+            <!-- v3.0 -->
+            <div class="roadmap-item">
+                <span class="status plan">规划中</span>
+                <div class="content">
+                    <h4>v3.0 操作系统安全</h4>
+                    <p>Linux/Windows 内核机制、安全配置、漏洞分析与缓解</p>
+                </div>
+            </div>
+            <!-- v4.0 -->
+            <div class="roadmap-item">
+                <span class="status plan">规划中</span>
+                <div class="content">
+                    <h4>v4.0 Active Directory 域安全</h4>
+                    <p>AD 架构、组策略、Kerberos 攻击、域信任、AD 安全加固</p>
+                </div>
+            </div>
+            <!-- v5.0 (无边框) -->
+            <div class="roadmap-item" style="border-bottom:none;">
+                <span class="status plan">规划中</span>
+                <div class="content">
+                    <h4>v5.0 企业身份安全</h4>
+                    <p>现代身份认证、零信任模型、IAM、PAM、云安全集成</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+    研究方法论
+    ============================================================ -->
+    <section id="methodology" style="padding:40px 28px 80px;max-width:1100px;margin:0 auto;border-top:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);font-weight:600;">//</span>
+            <h2 class="font-display" style="font-size:clamp(1.6rem,2.6vw,2.4rem);font-weight:700;margin:0;letter-spacing:-0.02em;">研究方法论</h2>
+            <span style="flex:1;height:1px;background:var(--border);"></span>
+        </div>
+        <p style="font-size:1rem;color:var(--muted);margin-bottom:24px;">
+            对每个技术点，遵循以下纵深模型进行系统化研究，确保理解深度与攻防视角。
+        </p>
+        <div class="method-card">
+            <div class="method-step">
+                <span class="step-num">①</span>
+                <span class="step-desc"><strong>协议原理</strong> — RFC 标准、设计哲学</span>
+            </div>
+            <div class="method-step">
+                <span class="step-num">②</span>
+                <span class="step-desc"><strong>实现机制</strong> — 内核实现、数据结构、状态机</span>
+            </div>
+            <div class="method-step">
+                <span class="step-num">③</span>
+                <span class="step-desc"><strong>数据包分析</strong> — Wireshark 抓包、字段解析、流程跟踪</span>
+            </div>
+            <div class="method-step">
+                <span class="step-num">④</span>
+                <span class="step-desc"><strong>攻击面分析</strong> — 漏洞成因、利用条件、攻击向量</span>
+            </div>
+            <div class="method-step">
+                <span class="step-num">⑤</span>
+                <span class="step-desc"><strong>防御方案</strong> — 检测规则、缓解措施、加固建议</span>
+            </div>
+            <div class="method-step" style="border-bottom:none;">
+                <span class="step-num">⑥</span>
+                <span class="step-desc"><strong>对抗视角</strong> — 攻击者如何绕过防御，红队进阶技巧</span>
+            </div>
+        </div>
+
+        <div class="method-example">
+            <p style="font-size:0.95rem;color:var(--fg-dim);margin:0 0 8px 0;"><strong>示例：ARP 协议</strong></p>
+            <ul style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:var(--muted);margin:0;padding-left:20px;list-style-type:disc;">
+                <li><code>原理</code> — RFC 826 定义的请求/响应机制</li>
+                <li><code>实现</code> — 广播请求、单播响应、缓存表老化</li>
+                <li><code>分析</code> — Wireshark 抓包分析 Request/Reply 字段</li>
+                <li><code>攻击</code> — ARP Spoofing 实现中间人攻击</li>
+                <li><code>防御</code> — DAI (动态ARP检测) + DHCP Snooping</li>
+                <li><code>对抗</code> — 为何静态ARP绑定无法防御DAI环境下的攻击？</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- ============================================================
+    我的学习目标 (优化版)
+    ============================================================ -->
     <section id="goals" style="padding:80px 28px;max-width:1100px;margin:0 auto;border-top:1px solid var(--border);">
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:48px;">
             <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);font-weight:600;">//</span>
             <h2 class="font-display" style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:700;margin:0;letter-spacing:-0.02em;">学习目标</h2>
             <span style="flex:1;height:1px;background:var(--border);"></span>
-            <span class="tag" style="font-size:10px;">roadmap</span>
+            <span class="tag" style="font-size:10px;">milestones</span>
         </div>
 
         <div style="background:var(--bg-elev);border:1px solid var(--border);border-radius:4px;padding:8px 24px;">
@@ -999,7 +1349,9 @@
         </div>
     </section>
 
-    <!-- ===== 关于 / ABOUT ===== -->
+    <!-- ============================================================
+    关于 / ABOUT
+    ============================================================ -->
     <section id="about" style="padding:60px 28px 80px;max-width:900px;margin:0 auto;border-top:1px solid var(--border);">
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
             <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);font-weight:600;">//</span>
@@ -1009,15 +1361,38 @@
 
         <div class="about-card reveal" id="aboutCard" style="background:var(--bg-elev);border:1px solid var(--border);border-radius:4px;padding:32px 36px;transition:border-color 0.3s ease, box-shadow 0.4s ease;">
             <p style="font-size:1.05rem;line-height:1.8;color:var(--fg-dim);margin:0 0 16px 0;">
-                我是 <span style="color:var(--fg);font-weight:600;">Cyph3r</span>，
-                一名计算机网络专业的学生，致力于理解网络通信与系统安全的底层原理。
+                <span style="color:var(--fg);font-weight:600;">Cyph3r</span> · 企业安全方向技术研究者
             </p>
             <p style="font-size:1rem;line-height:1.8;color:var(--muted);margin:0 0 16px 0;">
-                相比只关注漏洞利用，我更关注网络通信过程、数据包流转、操作系统机制、身份认证模型以及企业网络架构与攻防检测体系。
+                专注于网络通信与系统安全的底层原理，相比只关注漏洞利用，我更关注通信过程、数据包流转、操作系统机制、身份认证模型以及企业网络架构与攻防检测体系。
             </p>
             <p style="font-size:0.95rem;line-height:1.8;color:var(--muted);margin:0 0 24px 0;">
                 通过持续学习和实验，逐步构建从物理层到应用层、从内核到安全策略的完整知识图谱。
             </p>
+
+            <!-- GitHub 项目卡片 -->
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:18px 22px;margin-bottom:24px;">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <i class="fab fa-github" style="font-size:24px;color:var(--accent);"></i>
+                    <div>
+                        <a href="https://github.com/Cyph3rLab/Network-Engineering-Notes" target="_blank" rel="noopener" style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--fg);text-decoration:none;font-size:1.05rem;">
+                            Network-Engineering-Notes
+                        </a>
+                        <p style="font-size:0.85rem;color:var(--muted);margin:2px 0 0 0;">
+                            企业网络安全与内网渗透知识库
+                        </p>
+                    </div>
+                </div>
+                <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;">
+                    <span class="tag" style="font-size:9px;">TCP/IP</span>
+                    <span class="tag" style="font-size:9px;">协议攻击</span>
+                    <span class="tag" style="font-size:9px;">内网渗透</span>
+                    <span class="tag" style="font-size:9px;">AD域安全</span>
+                    <span class="tag" style="font-size:9px;">Windows安全</span>
+                    <span class="tag" style="font-size:9px;">Linux内核</span>
+                </div>
+            </div>
+
             <div style="display:flex;flex-wrap:wrap;gap:16px;padding-top:20px;border-top:1px solid var(--border);">
                 <a href="mailto:cyph3r1ab@outlook.com" class="contact-pill" style="font-size:13px;padding:10px 20px;">
                     <i class="fas fa-envelope"></i>
@@ -1037,10 +1412,11 @@
         </div>
     </section>
 
-    <!-- ===== FOOTER ===== -->
+    <!-- ============================================================
+    FOOTER
+    ============================================================ -->
     <footer style="padding:32px 28px;border-top:1px solid var(--border);text-align:center;background:var(--bg-elev);">
         <div style="max-width:1000px;margin:0 auto;">
-            <!-- 调整了字体大小从 13px 到 16px，增加底部间距 -->
             <p style="font-family:'JetBrains Mono',monospace;font-size:16px;color:var(--muted);margin:0 0 14px 0;display:flex;justify-content:center;flex-wrap:wrap;gap:0;align-items:center;min-height:1.6em;">
                 <span style="color:var(--accent);">$&nbsp;</span>
                 <span id="footer-typing" style="color:var(--fg);"></span>
@@ -1061,13 +1437,17 @@
         </div>
     </footer>
 
-    <!-- ===== JAVASCRIPT ===== -->
+    <!-- ============================================================
+    JAVASCRIPT
+    ============================================================ -->
     <script>
-        // === TYPEWRITER (Hero) ===
+        // ============================================================
+        // TYPEWRITER (Hero)
+        // ============================================================
         const greetings = [
             "hello, cyberspace.",
             "you found /sec/log.",
-            "network security learner.",
+            "network security researcher.",
             "studying protocols and systems.",
             "from packets to security."
         ];
@@ -1101,7 +1481,9 @@
         }
         tick();
 
-        // === READING PROGRESS BAR ===
+        // ============================================================
+        // READING PROGRESS BAR
+        // ============================================================
         const progressBar = document.getElementById('progressBar');
 
         function updateProgress() {
@@ -1113,7 +1495,9 @@
         window.addEventListener('scroll', updateProgress, { passive: true });
         updateProgress();
 
-        // === THEME TOGGLE ===
+        // ============================================================
+        // THEME TOGGLE
+        // ============================================================
         const themeButtons = document.querySelectorAll('.theme-btn');
         const root = document.documentElement;
 
@@ -1142,7 +1526,9 @@
         } catch (e) {}
         setTheme(initialTheme, false);
 
-        // === MOUSE GLOW ===
+        // ============================================================
+        // MOUSE GLOW
+        // ============================================================
         const mouseGlow = document.getElementById('mouseGlow');
         const hero = document.getElementById('hero');
         hero.addEventListener('mousemove', (e) => {
@@ -1155,7 +1541,9 @@
             mouseGlow.style.opacity = '0';
         });
 
-        // === SCROLL REVEAL ===
+        // ============================================================
+        // SCROLL REVEAL
+        // ============================================================
         const revealObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -1168,7 +1556,9 @@
         document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
         document.querySelectorAll('.goal-item').forEach(el => revealObserver.observe(el));
 
-        // === About card独立观察器 ===
+        // ============================================================
+        // ABOUT CARD 独立观察器
+        // ============================================================
         const aboutCard = document.getElementById('aboutCard');
         if (aboutCard) {
             const aboutObserver = new IntersectionObserver((entries) => {
@@ -1186,7 +1576,9 @@
             }
         }
 
-        // === KEYBOARD SHORTCUT: T ===
+        // ============================================================
+        // KEYBOARD SHORTCUT: T
+        // ============================================================
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (e.key === 't' || e.key === 'T') {
@@ -1197,7 +1589,9 @@
             }
         });
 
-        // === BG GRID PARALLAX ===
+        // ============================================================
+        // BG GRID PARALLAX
+        // ============================================================
         window.addEventListener('scroll', () => {
             const scrolled = window.scrollY;
             const heroGrid = hero;
@@ -1206,7 +1600,9 @@
             }
         }, { passive: true });
 
-        // === NAV SCROLL EFFECT ===
+        // ============================================================
+        // NAV SCROLL EFFECT
+        // ============================================================
         const nav = document.getElementById('nav');
         window.addEventListener('scroll', () => {
             if (window.scrollY > 60) {
@@ -1216,7 +1612,9 @@
             }
         }, { passive: true });
 
-        // === STAT COUNTERS ===
+        // ============================================================
+        // STAT COUNTERS
+        // ============================================================
         let countersAnimated = false;
 
         function animateCounters() {
@@ -1274,7 +1672,9 @@
             statsObserver.observe(document.getElementById('hero'));
         }
 
-        // === BUTTON RIPPLE ===
+        // ============================================================
+        // BUTTON RIPPLE
+        // ============================================================
         document.querySelectorAll('.btn-primary').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 const rect = this.getBoundingClientRect();
@@ -1289,7 +1689,9 @@
             });
         });
 
-        // === SMOOTH NAV ANCHOR SCROLL ===
+        // ============================================================
+        // SMOOTH NAV ANCHOR SCROLL
+        // ============================================================
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 const target = document.querySelector(this.getAttribute('href'));
@@ -1302,7 +1704,9 @@
             });
         });
 
-        // === MOUSE PARALLAX ON DOTS ===
+        // ============================================================
+        // MOUSE PARALLAX ON DOTS
+        // ============================================================
         document.addEventListener('mousemove', (e) => {
             const dots = document.querySelectorAll('.float-dot');
             const x = (e.clientX / window.innerWidth - 0.5) * 2;
@@ -1314,7 +1718,7 @@
         }, { passive: true });
 
         // ============================================================
-        // === FOOTER TYPING ANIMATION (完整命令行) ===
+        // FOOTER TYPING ANIMATION
         // ============================================================
         (function initFooterTyping() {
             const typingEl = document.getElementById('footer-typing');
@@ -1388,12 +1792,12 @@
                 startTyping();
             };
 
-            console.log('⌨️  页脚完整命令行打字动画已就绪 (速度 40–100ms/字符)');
+            console.log('⌨️  页脚完整命令行打字动画已就绪');
         })();
 
-        console.log('🔒 /sec/log — 网络安全学习笔记 · 动画已全面启用');
+        console.log('🔒 /sec/log — 网络安全学习笔记 · 优化完成');
         console.log('⌨️  按 T 键切换主题');
-        console.log('📌 "关于" 卡片已配置独立观察器');
+        console.log('📌 技术方向卡片、学习目标动画已统一优化');
     </script>
 </body>
 </html>
