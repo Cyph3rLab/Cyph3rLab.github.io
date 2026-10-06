@@ -1,944 +1,1060 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>404 — /sec/log</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <style>
-        /* ============================================================
-           THEME TOKENS (完全复用原风格)
-           ============================================================ */
-        :root[data-theme="dark"] {
-            --bg: #0c0b09;
-            --bg-elev: #14120e;
-            --bg-elev-2: #1c1a14;
-            --fg: #f0ead6;
-            --fg-dim: #c9c1ad;
-            --muted: #8a8275;
-            --accent: #f59e0b;
-            --accent-rgb: 245, 158, 11;
-            --accent-2: #06b6d4;
-            --accent-2-rgb: 6, 182, 212;
-            --border: rgba(240, 234, 214, 0.08);
-            --border-strong: rgba(240, 234, 214, 0.18);
-            --card: #15130e;
-            --code-bg: #060503;
-            --code-fg: #f0ead6;
-            --glow: rgba(245, 158, 11, 0.15);
-            --nav-bg: rgba(12, 11, 9, 0.6);
-            --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-        }
-        :root[data-theme="light"] {
-            --bg: #f3ecdc;
-            --bg-elev: #faf3e1;
-            --bg-elev-2: #fffaee;
-            --fg: #1a1610;
-            --fg-dim: #3d362b;
-            --muted: #6b6358;
-            --accent: #c2410c;
-            --accent-rgb: 194, 65, 12;
-            --accent-2: #0e7490;
-            --accent-2-rgb: 14, 116, 144;
-            --border: rgba(26, 22, 16, 0.12);
-            --border-strong: rgba(26, 22, 16, 0.24);
-            --card: #fffaee;
-            --code-bg: #1a1610;
-            --code-fg: #f3ecdc;
-            --glow: rgba(194, 65, 12, 0.12);
-            --nav-bg: rgba(243, 236, 220, 0.75);
-            --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
-        }
-        :root[data-theme="cyber"] {
-            --bg: #02060a;
-            --bg-elev: #050d10;
-            --bg-elev-2: #071318;
-            --fg: #4eff96;
-            --fg-dim: #8affb8;
-            --muted: #2a8a5e;
-            --accent: #ffea00;
-            --accent-rgb: 255, 234, 0;
-            --accent-2: #ff10f0;
-            --accent-2-rgb: 255, 16, 240;
-            --border: rgba(78, 255, 150, 0.18);
-            --border-strong: rgba(78, 255, 150, 0.4);
-            --card: #050d10;
-            --code-bg: #000;
-            --code-fg: #4eff96;
-            --glow: rgba(78, 255, 150, 0.2);
-            --nav-bg: rgba(2, 6, 10, 0.8);
-            --nav-shadow: 0 4px 30px rgba(78, 255, 150, 0.08);
-        }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>404 — /sec/log</title>
+<meta name="description" content="这个地址没有回应 — /sec/log，Cyph3r 的网络安全学习笔记。" />
+<meta name="robots" content="noindex" />
+<!-- 打磨：移动端地址栏配色，跟随主题（head 脚本 + setTheme 里同步更新） -->
+<meta name="theme-color" content="#f5efe2" id="themeColorMeta" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<script>
+  // 提前应用主题，防止闪烁（与首页共用同一个 key，两边切换互相同步）
+  // 打磨：localStorage 里没有显式选择时，回落到系统深色偏好；
+  //       同时同步 theme-color，免得移动端地址栏颜色和页面不一致
+  (function () {
+    try {
+      var t = localStorage.getItem('sec-log-theme');
+      if (t !== 'dark' && t !== 'light') {
+        t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+      if (t === 'dark') {
+        var m = document.getElementById('themeColorMeta');
+        if (m) m.setAttribute('content', '#0c0b09');
+      }
+    } catch (e) {}
+  })();
+</script>
+<style>
+/* ============================================================
+   以下样式从首页原样复用 —— tokens、导航、按钮、页脚、入场动画
+   ============================================================ */
+/* ============================================================
+   FONT STACKS
+   ============================================================ */
+:root {
+  --font-sans: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont,
+               'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-display: 'Fraunces', 'Instrument Serif', 'Noto Serif SC',
+                  'Songti SC', 'SimSun', serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas,
+               /* 等宽栈里原本没有任何中文字体，中文只能掉到 monospace 兜底
+                  （Windows 上是宋体），和 JetBrains Mono 的英文完全不搭。
+                  这里按 macOS → Windows 顺序补上黑体；中文每个字恒为 1em 宽，
+                  放在等宽语境里依然对齐。 */
+               'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+               'Noto Sans SC', monospace;
+  /* 衬线正文栈：中英文都用衬线（Noto Serif SC 自带一套 Source Serif 拉丁字形，
+     正好是"中英同族"的搭配），无需额外加载字体 —— 标题已经在用它了。
+     用于「导语」段落：.hero__lead / .method-intro */
+  --font-serif-cn: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+}
 
-        /* ============================================================
-           RESET & BASE
-           ============================================================ */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        html {
-            scroll-behavior: smooth;
-        }
+/* ============================================================
+   THEME TOKENS —— 默认亮色
+   ============================================================ */
+:root,
+:root[data-theme="light"] {
+  /* 打磨：声明原生配色方案，滚动条 / 表单控件 / 自动填充底色跟着走 */
+  color-scheme: light;
+  --bg: #f5efe2;
+  --bg-elev: #fbf6ea;
+  --bg-elev-2: #fffdf5;
+  --fg: #1a1712;
+  --fg-dim: #3d362b;
+  --muted: #7a7266;
+  --accent: #c2410c;
+  --accent-rgb: 194, 65, 12;
+  --accent-2: #0e7490;
+  --border: rgba(26, 23, 18, 0.12);
+  --border-strong: rgba(26, 23, 18, 0.26);
+  --card: #fffdf5;
+  --nav-bg: rgba(245, 239, 226, 0.78);
+  --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+  --glow: rgba(194, 65, 12, 0.12);
+}
 
-        body {
-            background: var(--bg);
-            color: var(--fg);
-            font-family: 'Space Grotesk', sans-serif;
-            margin: 0;
-            overflow-x: hidden;
-            position: relative;
-            opacity: 0;
-            animation: pageFadeIn 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-            line-height: 1.6;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        @keyframes pageFadeIn {
-            0% {
-                opacity: 0;
-                transform: translateY(12px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c0b09;
+  --bg-elev: #14120e;
+  --bg-elev-2: #1c1a14;
+  --fg: #f0ead6;
+  --fg-dim: #c9c1ad;
+  --muted: #8a8275;
+  --accent: #f59e0b;
+  --accent-rgb: 245, 158, 11;
+  --accent-2: #06b6d4;
+  --border: rgba(240, 234, 214, 0.10);
+  --border-strong: rgba(240, 234, 214, 0.22);
+  --card: #131109;
+  --nav-bg: rgba(12, 11, 9, 0.72);
+  --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  --glow: rgba(245, 158, 11, 0.15);
+}
 
-        [data-theme="cyber"] body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(78, 255, 150, 0.025) 2px, rgba(78, 255, 150, 0.025) 3px);
-            z-index: 200;
-            mix-blend-mode: overlay;
-        }
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html {
+  scroll-behavior: smooth;
+  /* 打磨：如果将来有人在 404 页里加锚点（或者从别处带 hash 跳进来），
+     原生跳转也得给固定导航让出空间 */
+  scroll-padding-top: 88px;
+}
 
-        body.theme-anim,
-        body.theme-anim *,
-        body.theme-anim *::before,
-        body.theme-anim *::after {
-            transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-                color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-                fill 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-                box-shadow 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  opacity: 0;
+  /* 只淡入，不做位移 —— body 上一旦有 transform（哪怕终值是 translateY(0)），
+     body 就会成为 position:fixed 后代的包含块，导航栏和顶部进度条会退化成
+     “相对 body 绝对定位”，往下滚动时跟着页面一起滚走。入场位移改到 main 上。 */
+  animation: pageFadeIn 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes pageFadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
 
-        .font-display {
-            font-family: 'Fraunces', serif;
-        }
-        .font-mono {
-            font-family: 'JetBrains Mono', monospace;
-        }
+/* 入场位移放在 main 上：main 内部没有任何 position:fixed 元素，安全 */
+main {
+  animation: contentRise 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes contentRise {
+  0%   { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: none; }
+}
 
-        /* ============================================================
-           PROGRESS BAR
-           ============================================================ */
-        .progress-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 3px;
-            width: 0%;
-            background: linear-gradient(90deg, var(--accent), var(--accent-2));
-            z-index: 100;
-            box-shadow: 0 0 12px var(--accent), 0 0 4px var(--accent);
-            transition: width 0.1s linear;
-        }
+body.theme-anim,
+body.theme-anim *,
+body.theme-anim *::before,
+body.theme-anim *::after {
+  transition: background-color 0.6s cubic-bezier(0.4,0,0.2,1),
+              color 0.6s cubic-bezier(0.4,0,0.2,1),
+              border-color 0.6s cubic-bezier(0.4,0,0.2,1),
+              fill 0.6s cubic-bezier(0.4,0,0.2,1),
+              box-shadow 0.6s cubic-bezier(0.4,0,0.2,1) !important;
+}
 
-        /* ============================================================
-           BACKGROUND GRID
-           ============================================================ */
-        .bg-grid {
-            background-image: linear-gradient(var(--border) 1px, transparent 1px),
-                linear-gradient(90deg, var(--border) 1px, transparent 1px);
-            background-size: 56px 56px;
-            background-position: center center;
-        }
+.serif { font-family: var(--font-display); }
+.mono  { font-family: var(--font-mono); }
 
-        /* ============================================================
-           FLOATING DOTS
-           ============================================================ */
-        .float-dot {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(60px);
-            opacity: 0.2;
-            pointer-events: none;
-            animation: drift 18s ease-in-out infinite;
-        }
-        .float-dot:nth-child(1) {
-            animation-duration: 22s;
-            animation-delay: -2s;
-        }
-        .float-dot:nth-child(2) {
-            animation-duration: 16s;
-            animation-delay: -6s;
-        }
-        .float-dot:nth-child(3) {
-            animation-duration: 20s;
-            animation-delay: -10s;
-        }
-        .float-dot:nth-child(4) {
-            animation-duration: 14s;
-            animation-delay: -4s;
-        }
-        @keyframes drift {
-            0%,
-            100% {
-                transform: translate(0, 0) scale(1);
-            }
-            25% {
-                transform: translate(80px, -50px) scale(1.12);
-            }
-            50% {
-                transform: translate(-40px, 60px) scale(0.92);
-            }
-            75% {
-                transform: translate(50px, -30px) scale(1.05);
-            }
-        }
+::selection { background: var(--accent); color: var(--bg); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 5px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-        /* ============================================================
-           MOUSE GLOW
-           ============================================================ */
-        .mouse-glow {
-            position: absolute;
-            width: 700px;
-            height: 700px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(var(--accent-rgb), 0.12) 0%, transparent 60%);
-            pointer-events: none;
-            transform: translate(-50%, -50%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            filter: blur(30px);
-            z-index: 1;
-        }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
 
-        /* ============================================================
-           TYPEWRITER CURSOR
-           ============================================================ */
-        .cursor::after {
-            content: '▌';
-            color: var(--accent);
-            animation: blink 1s steps(1) infinite;
-            margin-left: 4px;
-            font-weight: 400;
-        }
-        @keyframes blink {
-            0%,
-            50% {
-                opacity: 1;
-            }
-            51%,
-            100% {
-                opacity: 0;
-            }
-        }
-        .logo-cursor {
-            display: inline-block;
-            width: 0.5em;
-            height: 1em;
-            background: var(--accent);
-            margin-left: 3px;
-            animation: blink 1.1s steps(1) infinite;
-            vertical-align: text-bottom;
-        }
+/* ============================================================
+   打磨：跳转到主内容（与首页同一套，键盘 / 读屏用户跳过导航）
+   ============================================================ */
+.skip-link {
+  position: fixed;
+  top: 8px; left: 8px;
+  z-index: 500;
+  padding: 10px 16px;
+  background: var(--fg);
+  color: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  border-radius: 2px;
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform 0.2s ease;
+}
+.skip-link:focus { transform: translateY(0); }
 
-        /* ============================================================
-           LINKS
-           ============================================================ */
-        .hover-link {
-            position: relative;
-            color: var(--fg-dim);
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-        .hover-link:hover {
-            color: var(--fg);
-        }
-        .hover-link::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            bottom: -5px;
-            width: 0;
-            height: 1px;
-            background: var(--accent);
-            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .hover-link:hover::after {
-            width: 100%;
-        }
+/* ============================================================
+   LAYOUT PRIMITIVES
+   ============================================================ */
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-left: clamp(20px, 4vw, 40px);
+  padding-right: clamp(20px, 4vw, 40px);
+}
 
-        /* ============================================================
-           THEME TOGGLE
-           ============================================================ */
-        .theme-toggle {
-            display: inline-flex;
-            background: var(--bg-elev);
-            border: 1px solid var(--border-strong);
-            border-radius: 999px;
-            padding: 3px;
-            gap: 2px;
-            flex-shrink: 0;
-        }
-        .theme-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 999px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            color: var(--muted);
-            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            font-size: 12px;
-        }
-        .theme-btn.active {
-            background: var(--accent);
-            color: var(--bg);
-            box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.5);
-        }
-        .theme-btn:hover:not(.active) {
-            color: var(--fg);
-            transform: scale(1.08);
-        }
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
 
-        /* ============================================================
-           TAG
-           ============================================================ */
-        .tag {
-            display: inline-block;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--accent);
-            padding: 4px 9px;
-            border: 1px solid rgba(var(--accent-rgb), 0.5);
-            border-radius: 2px;
-            background: rgba(var(--accent-rgb), 0.08);
-            font-weight: 500;
-            animation: tagPulse 3s ease-in-out infinite;
-        }
-        @keyframes tagPulse {
-            0%,
-            100% {
-                box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
-            }
-            50% {
-                box-shadow: 0 0 12px 2px rgba(var(--accent-rgb), 0.15);
-            }
-        }
+/* ============================================================
+   NAV
+   ============================================================ */
+#nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  background: var(--nav-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
+}
+#nav.scrolled {
+  background: var(--bg-elev);
+  box-shadow: var(--nav-shadow);
+  border-bottom-color: var(--border-strong);
+}
+/* 打磨：不支持 backdrop-filter 的浏览器上，半透明导航会透出内容 —— 退回纯色 */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  #nav { background: var(--bg); }
+  #nav.scrolled { background: var(--bg-elev); }
+}
+.nav__inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 14px clamp(20px, 4vw, 40px);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap;
+}
+.brand {
+  font-family: var(--font-mono);
+  font-size: 16px; font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  text-decoration: none;
+  display: inline-flex; align-items: center;
+  flex-shrink: 0;
+}
+.brand .slash { color: var(--muted); }
+.logo-cursor {
+  display: inline-block;
+  width: 0.5em; height: 1em;
+  background: var(--accent);
+  margin-left: 3px;
+  animation: blink 1.1s steps(1) infinite;
+  vertical-align: text-bottom;
+}
+.nav__right { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.nav__links { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.nav__link {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  position: relative;
+  padding-bottom: 2px;
+  transition: color 0.3s ease;
+}
+.nav__link::after {
+  content: '';
+  position: absolute; left: 0; bottom: -2px;
+  width: 0; height: 1px; background: var(--accent);
+  transition: width 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+.nav__link:hover { color: var(--fg); }
+.nav__link:hover::after { width: 100%; }
+.nav__icon {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.08em;
+  color: var(--muted); text-decoration: none;
+  transition: color 0.3s ease;
+}
+.nav__icon:hover { color: var(--accent); }
+.nav__icon i { font-size: 14px; }
 
-        /* ============================================================
-           BUTTONS
-           ============================================================ */
-        .btn-primary {
-            background: var(--accent);
-            color: var(--bg);
-            padding: 13px 22px;
-            border: none;
-            border-radius: 4px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            position: relative;
-            overflow: hidden;
-        }
-        .btn-primary::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
-            transform: translateX(-100%);
-            transition: transform 0.6s ease;
-        }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 30px -8px rgba(var(--accent-rgb), 0.6);
-        }
-        .btn-primary:hover::before {
-            transform: translateX(100%);
-        }
-        .btn-primary .ripple {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
-            transform: scale(0);
-            animation: rippleAnim 0.7s ease-out forwards;
-            pointer-events: none;
-        }
-        @keyframes rippleAnim {
-            to {
-                transform: scale(4);
-                opacity: 0;
-            }
-        }
+/* theme toggle */
+/* theme toggle —— 单个圆形按钮，内嵌「对半圆」图标（明暗对比的经典符号） */
+.theme-toggle {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle__icon {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  color: var(--fg-dim);
+  /* 左半实心、右半留白 —— 就是图二那个符号，纯 CSS 画，不用图标字体 */
+  background: linear-gradient(90deg, currentColor 0 50%, transparent 50% 100%);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+}
+.theme-toggle:hover .theme-toggle__icon { color: var(--fg); }
+/* 切到暗色时把填充转到另一半 —— 半月相位翻转 */
+:root[data-theme="dark"] .theme-toggle__icon { transform: rotate(180deg); }
 
-        .btn-secondary {
-            background: transparent;
-            color: var(--fg);
-            border: 1px solid var(--border-strong);
-            padding: 13px 22px;
-            border-radius: 4px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            font-weight: 500;
-            letter-spacing: 0.08em;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            position: relative;
-        }
-        .btn-secondary:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-            transform: translateY(-2px);
-        }
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero {
+  padding-top: clamp(120px, 16vh, 180px);
+  padding-bottom: clamp(56px, 8vh, 96px);
+  position: relative;
+}
+.hero__eyebrow {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: clamp(32px, 5vh, 52px);
+  min-height: 1.6em;
+}
+.hero__prompt { color: var(--accent); font-weight: 700; }
+.cursor::after {
+  content: '▌';
+  color: var(--accent);
+  margin-left: 2px;
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
 
-        /* ============================================================
-           NAV
-           ============================================================ */
-        #nav {
-            transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
-            background: var(--nav-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
-        }
-        #nav.scrolled {
-            background: var(--bg-elev);
-            box-shadow: var(--nav-shadow);
-            border-bottom-color: var(--border-strong);
-        }
+.hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 0.85fr);
+  gap: clamp(32px, 5vw, 76px);
+  align-items: end;
+}
+@media (max-width: 880px) {
+  .hero__grid { grid-template-columns: 1fr; align-items: start; gap: 44px; }
+}
 
-        /* ============================================================
-           404 HERO
-           ============================================================ */
-        .error-code {
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 700;
-            font-size: clamp(6rem, 20vw, 14rem);
-            line-height: 1;
-            letter-spacing: -0.04em;
-            color: var(--accent);
-            text-shadow: 0 0 60px rgba(var(--accent-rgb), 0.2),
-                0 0 120px rgba(var(--accent-rgb), 0.08);
-            animation: errorPulse 4s ease-in-out infinite;
-            position: relative;
-            z-index: 2;
-        }
-        @keyframes errorPulse {
-            0%,
-            100% {
-                text-shadow: 0 0 60px rgba(var(--accent-rgb), 0.2), 0 0 120px rgba(var(--accent-rgb), 0.08);
-            }
-            50% {
-                text-shadow: 0 0 80px rgba(var(--accent-rgb), 0.35), 0 0 160px rgba(var(--accent-rgb), 0.15);
-            }
-        }
+/* 注册光斑半径，让它成为一个可过渡的 <length>：
+   收尾时把半径收到 0，光就"收"回去而不是"啪"地断电。
+   不支持 @property 的浏览器会退化成瞬间开关，功能不受影响。 */
+@property --spot-r {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 120px;
+}
 
-        .error-sub {
-            font-family: 'Fraunces', serif;
-            font-size: clamp(1.6rem, 4vw, 3.2rem);
-            font-weight: 600;
-            font-style: italic;
-            color: var(--fg);
-            margin-top: 4px;
-            position: relative;
-            z-index: 2;
-        }
+/* ── 标题：手电筒聚光翻译 ────────────────────────────── */
+.hero__title {
+  margin-bottom: clamp(22px, 3.5vh, 34px);
+  /* 光斑圆心坐标（由 JS 写入） */
+  --spot-x: -9999px;
+  --spot-y: -9999px;
+  /* 光斑半径 —— 缩小，更聚焦 */
+  --spot-r: clamp(70px, 11vw, 130px);
+  /* 光斑边缘过渡带起点 —— 就是这一个数字控制"软硬"：
+     98% ≈ 硬边（≈2.6px 过渡），最干净；
+     往下调会更柔，但中文层也会跟着半透明，
+     而两层显示的是**不同文字**，于是中英会叠出重影。
+     实测 94% 起就能看出糊，90% 已经明显，所以默认留在 98%。 */
+  --spot-feather: 98%;
+  transition: --spot-r 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-        .error-desc {
-            font-size: clamp(0.95rem, 1.4vw, 1.2rem);
-            max-width: 580px;
-            color: var(--muted);
-            line-height: 1.8;
-            margin: 16px auto 32px;
-            position: relative;
-            z-index: 2;
-        }
+.title-stack {
+  position: relative;
+  display: block;
+  isolation: isolate;
+  /* 提升层级：右侧 aside 带 transform（.reveal）会形成层叠上下文，
+     标题若有一点溢出就会被它压住 —— 这里保证标题始终绘制在最上层。 */
+  z-index: 3;
+}
 
-        .error-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-            justify-content: center;
-            position: relative;
-            z-index: 2;
-        }
+/* 两层文字共用同一套排版度量 —— 行盒高度严格一致 */
+.title-layer {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2.1rem, 5.8vw, 4.3rem);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+.title-layer em {
+  font-style: italic;
+  color: var(--accent);
+  font-family: 'Instrument Serif', var(--font-display);
+  font-weight: 400;
+}
 
-        .error-404-wrap {
-            position: relative;
-            display: inline-block;
-        }
-        .error-404-wrap::before {
-            content: '';
-            position: absolute;
-            top: -30%;
-            left: -10%;
-            width: 120%;
-            height: 140%;
-            background: radial-gradient(ellipse at 30% 50%, rgba(var(--accent-rgb), 0.08), transparent 60%);
-            filter: blur(50px);
-            pointer-events: none;
-            animation: titleGlow 6s ease-in-out infinite alternate;
-        }
-        @keyframes titleGlow {
-            0% {
-                opacity: 0.4;
-                transform: translateX(-10px) scale(1);
-            }
-            100% {
-                opacity: 0.9;
-                transform: translateX(20px) scale(1.1);
-            }
-        }
+/* 中文层：光斑覆盖处隐形。
+   两层必须用**同一个 --spot-feather**，否则过渡带里两层都半透明，
+   而它们显示的是不同文字 —— 会叠出重影。 */
+.title-layer--zh {
+  display: block;
+  -webkit-mask-image: radial-gradient(
+    circle var(--spot-r) at var(--spot-x) var(--spot-y),
+    transparent 0%,
+    transparent var(--spot-feather),
+    #000 100%
+  );
+  mask-image: radial-gradient(
+    circle var(--spot-r) at var(--spot-x) var(--spot-y),
+    transparent 0%,
+    transparent var(--spot-feather),
+    #000 100%
+  );
+}
 
-        /* ============================================================
-           SCROLLBAR
-           ============================================================ */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--border-strong);
-            border-radius: 5px;
-            border: 2px solid var(--bg);
-            transition: background 0.3s ease;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--accent);
-        }
-        ::selection {
-            background: var(--accent);
-            color: var(--bg);
-        }
+/* 英文译文层：字号更大，仅光斑范围内可见（与中文层严格互斥） */
+.title-layer--en {
+  position: absolute;
+  left: 0;
+  top: 0;
+  /* 宽度跟随文字真实宽度（不再写死 100%）：mask 会按 border-box 裁切内容，
+     固定 100% 时超出列宽的部分会被整段裁掉，表现为“这一行不显示 / 被遮挡”。
+     min-width:100% 保证文字较短时仍与中文层同宽，光斑坐标不受影响。 */
+  width: max-content;
+  min-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;   /* 与中文逐行对齐 */
+  /* 字号：中文的 0.9 倍（= 5.8vw × 0.9）。这只是上限，
+     JS 会按“每行实际可用的宽度”再自适应，确保永不裁切。 */
+  font-size: clamp(1.89rem, 5.22vw, 3.87rem);
+  /* 行盒高度兜底（JS 会改成中文行盒的实测 px 值） */
+  line-height: 1.222;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
 
-        /* ============================================================
-           FOOTER
-           ============================================================ */
-        footer a {
-            transition: color 0.3s ease, transform 0.3s ease;
-            display: inline-block;
-        }
-        footer a:hover {
-            color: var(--accent) !important;
-            transform: translateY(-1px);
-        }
+  -webkit-mask-image: radial-gradient(
+    circle var(--spot-r) at var(--spot-x) var(--spot-y),
+    #000 0%,
+    #000 var(--spot-feather),
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    circle var(--spot-r) at var(--spot-x) var(--spot-y),
+    #000 0%,
+    #000 var(--spot-feather),
+    transparent 100%
+  );
+}
 
-        /* ============================================================
-           RESPONSIVE
-           ============================================================ */
-        @media (max-width: 768px) {
-            #nav {
-                padding: 12px 16px !important;
-            }
-            .nav-links {
-                gap: 10px !important;
-            }
-            .nav-links a {
-                font-size: 12px !important;
-            }
-            .theme-btn {
-                width: 28px;
-                height: 28px;
-                font-size: 10px;
-            }
-            .error-404-wrap::before {
-                display: none;
-            }
-            .error-actions {
-                flex-direction: column;
-                align-items: center;
-            }
-            .btn-primary,
-            .btn-secondary {
-                width: 100%;
-                justify-content: center;
-            }
-        }
+/* 导语用衬线：紧贴在衬线大标题下面的第一段，跟标题同一个声音；
+   正文仍然用无衬线 —— 中文小字号下无衬线更耐读，
+   衬线/无衬线的对比本身就是这一页的层级感来源。 */
+.hero__lead {
+  font-family: var(--font-serif-cn);
+  font-size: clamp(0.98rem, 1.35vw, 1.12rem);
+  line-height: 1.85;
+  color: var(--fg-dim);
+  max-width: 620px;
+  margin-bottom: 0;
+}
+.hero__lead strong { color: var(--fg); font-weight: 600; }
 
-        @media (max-width: 480px) {
-            #nav {
-                padding: 10px 12px !important;
-            }
-            .nav-links {
-                gap: 6px !important;
-            }
-            .nav-links a {
-                font-size: 10px !important;
-            }
-            .theme-btn {
-                width: 24px;
-                height: 24px;
-                font-size: 9px;
-            }
-            .error-desc {
-                padding: 0 8px;
-            }
-        }
+.hero__actions {
+  display: flex; align-items: center;
+  gap: 14px 26px;
+  flex-wrap: wrap;
+  margin-top: clamp(30px, 4vh, 44px);
+}
 
-        @media (prefers-reduced-motion: reduce) {
-            *,
-            *::before,
-            *::after {
-                animation-duration: 0.01ms !important;
-                transition-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-            }
-            body {
-                animation: none !important;
-                opacity: 1 !important;
-                transform: none !important;
-            }
-            .error-code {
-                animation: none !important;
-                text-shadow: 0 0 60px rgba(var(--accent-rgb), 0.2);
-            }
-        }
-    </style>
+/* buttons & links */
+.button {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 14px 24px;
+  border-radius: 2px;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  cursor: pointer;
+  border: 1px solid transparent;
+  user-select: none;
+}
+.button--ink {
+  background: var(--fg);
+  color: var(--bg);
+  --ripple-color: rgba(255, 255, 255, 0.4);
+}
+.button--ink:hover {
+  background: var(--accent);
+  color: var(--bg);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -12px rgba(var(--accent-rgb), 0.7);
+}
+.button--ghost {
+  border-color: var(--border-strong);
+  color: var(--fg-dim);
+  --ripple-color: rgba(var(--accent-rgb), 0.22);
+}
+.button--ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+.button .ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--ripple-color, rgba(255,255,255,0.35));
+  transform: scale(0);
+  animation: rippleAnim 0.65s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes rippleAnim {
+  to { transform: scale(4); opacity: 0; }
+}
+
+.text-link {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  text-decoration: none;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border-strong);
+  transition: color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+}
+.text-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* aside note */
+.hero__note {
+  border-top: 1px solid var(--border-strong);
+  padding-top: 18px;
+}
+.hero__note-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 18px;
+}
+.hero__note-no {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+.hero__note-list {
+  list-style: none;
+  margin-bottom: 22px;
+}
+.hero__note-list li {
+  font-size: 0.93rem;
+  color: var(--fg-dim);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  transition: padding-left 0.3s ease, color 0.3s ease;
+}
+.hero__note-list li:hover {
+  padding-left: 6px;
+  color: var(--fg);
+}
+.hero__note-list li:last-child { border-bottom: none; }
+
+/* ============================================================
+   FOOTER
+   打磨：原来这里连着两行 `/* ===` 开注释块 —— CSS 注释不嵌套，
+   第一行的 `/*` 一直吃到 FOOTER 标题后的 `*/` 才闭合，
+   中间那行 `/* ===` 只是注释里的普通文字。渲染没问题，但看起来像漏了。
+   已合并成一个干净的注释块。
+   ============================================================ */
+footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev);
+  padding: 34px 0;
+}
+.footer__inner {
+  display: flex; flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.footer__cmd {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap;
+  gap: 0;
+  min-height: 1.7em;
+}
+.footer__cmd .p { color: var(--accent); margin-right: 8px; }
+.footer__cmd .t { color: var(--fg); }
+#footer-cursor {
+  display: inline-block;
+  width: 1ch; height: 1em;
+  background: var(--accent-2);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite;
+  transition: opacity 0.5s ease;
+  border-radius: 1px;
+}
+#footer-cursor.done { opacity: 0; animation: none; }
+
+.footer__copy {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.footer__copy strong { color: var(--fg); font-weight: 500; }
+.footer__links {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 22px;
+  margin-top: 2px;
+}
+.footer__links a {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-flex; align-items: center; gap: 7px;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+.footer__links a:hover { color: var(--accent); transform: translateY(-1px); }
+.footer__links i { font-size: 12px; }
+
+/* ============================================================
+   REVEAL
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.9s cubic-bezier(0.4,0,0.2,1),
+              transform 0.9s cubic-bezier(0.4,0,0.2,1);
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal--1 { transition-delay: 0.08s; }
+.reveal--2 { transition-delay: 0.16s; }
+.reveal--3 { transition-delay: 0.24s; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .nav__links { gap: 14px; }
+  .nav__link { font-size: 10px; }
+  .stats-bar__inner { grid-template-columns: 1fr; gap: 18px; }
+  .stat { flex-direction: row; align-items: baseline; gap: 12px; }
+  .stat__num { font-size: 1.4rem; }
+  .method-list li { grid-template-columns: 40px minmax(0,1fr); gap: 12px; }
+  .goal-item { grid-template-columns: 36px minmax(0,1fr); gap: 14px; }
+  .goal-item--final { padding-left: 12px; margin-left: -12px; }
+  .contact-row { flex-direction: column; align-items: flex-start; }
+  .contact-pill { font-size: 11px; padding: 9px 15px 9px 13px; }
+  .dir-card { transform: none !important; }
+}
+@media (max-width: 480px) {
+  .nav__right { gap: 12px; }
+  .nav__links { gap: 12px; }
+  .theme-toggle { width: 28px; height: 28px; }
+  .theme-toggle__icon { width: 13px; height: 13px; }
+  .hero__actions { gap: 12px 18px; }
+  .button { padding: 12px 18px; font-size: 10px; }
+  .repo-card { padding: 16px 16px; }
+  .method-example { padding: 16px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  html { scroll-behavior: auto !important; }   /* 平滑滚动也要关掉 */
+  body { animation: none !important; opacity: 1 !important; transform: none !important; }
+  main { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .reveal, .goal-item { opacity: 1 !important; transform: none !important; }
+  /* 关掉动效时线必须直接画满，否则分隔线会一直停在 scaleX(0) → 整列没有分隔线 */
+  .goal-item::after { transform: none !important; }
+  #footer-cursor { display: none !important; }
+  .marquee { animation: none !important; }
+}
+
+/* ============================================================
+   404 —— 只加这一块，上面的 tokens / 导航 / 按钮 / 页脚全部沿用首页
+   ============================================================ */
+.notfound {
+  padding-top: clamp(130px, 20vh, 220px);
+  padding-bottom: clamp(90px, 14vh, 170px);
+}
+.nf__eyebrow {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: clamp(26px, 4vh, 44px);
+  min-height: 1.6em;
+}
+.nf__eyebrow .p { color: var(--accent); font-weight: 700; }
+
+.nf__code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 20px;
+}
+.nf__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2rem, 5.4vw, 4rem);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  margin-bottom: clamp(22px, 3.5vh, 34px);
+  max-width: 16em;
+}
+.nf__title em {
+  font-style: italic;
+  color: var(--accent);
+  font-family: 'Instrument Serif', var(--font-display);
+  font-weight: 400;
+}
+.nf__lead {
+  font-family: var(--font-serif-cn);   /* 导语用衬线，与首页一致 */
+  font-size: clamp(0.98rem, 1.35vw, 1.12rem);
+  line-height: 1.85;
+  color: var(--fg-dim);
+  max-width: 620px;
+  margin-bottom: clamp(28px, 4vh, 42px);
+}
+.nf__actions {
+  display: flex; align-items: center; gap: 14px 26px; flex-wrap: wrap;
+}
+.nf__hint {
+  margin-top: clamp(38px, 6vh, 64px);
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.9;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  max-width: 620px;
+}
+.nf__hint .p { color: var(--accent); font-weight: 700; margin-right: 6px; }
+.nf__hint .ok { color: var(--fg-dim); }
+.nf__hint kbd {
+  font-family: var(--font-mono); font-size: 0.95em;
+  padding: 1px 5px; border: 1px solid var(--border-strong);
+  border-radius: 2px; color: var(--fg);
+}
+
+</style>
 </head>
 <body>
 
-    <!-- ===== PROGRESS BAR ===== -->
-    <div class="progress-bar" id="progressBar"></div>
+<!-- 打磨：键盘 / 读屏用户跳过导航（与首页一致） -->
+<a class="skip-link" href="#main">跳到主内容</a>
 
-    <!-- ===== MOUSE GLOW ===== -->
-    <div class="mouse-glow" id="mouseGlow"></div>
+<!-- ============================================================
+     NAV（与首页同一套，站内锚点指回首页）
+     ============================================================ -->
+<nav id="nav">
+  <div class="nav__inner">
+    <a href="/" class="brand">
+      <span class="slash">/</span>sec<span class="slash">/</span>log
+      <span class="logo-cursor"></span>
+    </a>
 
-    <!-- ============================================================
-    NAV
-    ============================================================ -->
-    <nav id="nav" style="position:fixed;top:0;left:0;right:0;z-index:50;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <a href="/" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;text-decoration:none;color:var(--fg);letter-spacing:-0.03em;display:flex;align-items:center;gap:2px;flex-shrink:0;">
-            <span style="color:var(--muted);">/</span>sec<span style="color:var(--muted);">/</span>log
-            <span class="logo-cursor"></span>
+    <div class="nav__right">
+      <div class="nav__links">
+        <a href="/#directions" class="nav__link">技术方向</a>
+        <a href="/#roadmap" class="nav__link">路线图</a>
+        <a href="/#methodology" class="nav__link">方法论</a>
+        <a href="/#goals" class="nav__link">目标</a>
+        <a href="/#about" class="nav__link">关于</a>
+        <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="nav__icon">
+          <i class="fab fa-github"></i> GitHub
         </a>
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-            <div class="nav-links" style="display:flex;align-items:center;gap:18px;font-family:'JetBrains Mono',monospace;font-size:13px;">
-                <a href="/" class="hover-link">首页</a>
-                <a href="/#directions" class="hover-link">技术方向</a>
-                <a href="/#goals" class="hover-link">学习目标</a>
-                <a href="/#roadmap" class="hover-link">路线图</a>
-                <a href="/#about" class="hover-link">关于</a>
-                <!-- 新增：博客与音乐 -->
-                <a href="https://note.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener" class="hover-link">博客</a>
-                <a href="https://alist.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener" class="hover-link">音乐</a>
-                <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="social-link" style="border:none;padding:4px 6px;color:var(--muted);text-decoration:none;transition:color 0.3s ease;" aria-label="GitHub">
-                    <i class="fab fa-github"></i>
-                    <span style="font-size:12px;font-weight:500;">GitHub</span>
-                </a>
-            </div>
-            <div class="theme-toggle" role="group" aria-label="主题切换">
-                <button class="theme-btn active" data-theme="dark" title="暗色" aria-label="暗色主题"><i class="fas fa-moon"></i></button>
-                <button class="theme-btn" data-theme="light" title="亮色" aria-label="亮色主题"><i class="fas fa-sun"></i></button>
-                <button class="theme-btn" data-theme="cyber" title="赛博" aria-label="赛博主题"><i class="fas fa-terminal"></i></button>
-            </div>
-        </div>
-    </nav>
+      </div>
 
-    <!-- ============================================================
-    404 HERO
-    ============================================================ -->
-    <section class="bg-grid" style="flex:1;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:120px 28px 80px;position:relative;overflow:hidden;text-align:center;">
+      <button type="button" class="theme-toggle" aria-pressed="false"
+              aria-label="切换到暗色主题" title="切换主题（快捷键 T）">
+        <span class="theme-toggle__icon" aria-hidden="true"></span>
+      </button>
+    </div>
+  </div>
+</nav>
 
-        <!-- 浮动光点 -->
-        <div class="float-dot" style="width:340px;height:340px;background:var(--accent);top:-100px;right:-80px;opacity:0.10;"></div>
-        <div class="float-dot" style="width:220px;height:220px;background:var(--accent-2);bottom:30px;left:-50px;opacity:0.07;animation-delay:-6s;"></div>
-        <div class="float-dot" style="width:160px;height:160px;background:var(--accent);top:40%;left:60%;opacity:0.05;animation-delay:-12s;"></div>
-        <div class="float-dot" style="width:280px;height:280px;background:var(--accent-2);bottom:10%;right:10%;opacity:0.06;animation-delay:-8s;"></div>
+<main>
 
-        <div style="max-width:900px;margin:0 auto;width:100%;position:relative;z-index:2;">
+  <!-- 打磨：加 id，供 skip-link 定位 -->
+  <section class="notfound wrap" id="main">
+    <p class="nf__eyebrow reveal">
+      <span class="p">$</span>
+      <span>traceroute /this-page</span>
+      <span class="cursor" aria-hidden="true"></span>
+    </p>
 
-            <!-- 小标签 -->
-            <div style="margin-bottom:24px;">
-                <span class="tag">404 — 未找到</span>
-            </div>
+    <p class="nf__code reveal reveal--1">HTTP 404 · destination unreachable</p>
 
-            <!-- 大号 404 -->
-            <div class="error-404-wrap">
-                <div class="error-code">404</div>
-            </div>
+    <h1 class="nf__title reveal reveal--1">
+      在协议与系统之间，<br /><em>这个地址没有回应。</em>
+    </h1>
 
-            <!-- 副标题 -->
-            <div class="error-sub">
-                <span style="color:var(--muted);">$</span>
-                <span id="typewriter" class="cursor"></span>
-            </div>
+    <p class="nf__lead reveal reveal--2">
+      你要找的页面不存在，或者已经被移动了。<br />
+      检查一下地址拼写，或者从下面重新出发。
+    </p>
 
-            <!-- 描述 -->
-            <p class="error-desc">
-                你似乎进入了一个不存在的路径。可能是链接已失效，或者页面已被迁移。<br />
-                不过没关系，让我们一起回到安全的知识世界吧。
-            </p>
+    <div class="nf__actions reveal reveal--3">
+      <a href="/" class="button button--ink">
+        回到首页 <span aria-hidden="true">&rarr;</span>
+      </a>
+      <a href="/#directions" class="text-link">技术方向</a>
+      <a href="/#roadmap" class="text-link">学习路线图</a>
+    </div>
 
-            <!-- ===== 操作按钮：醒目添加博客与音乐 ===== -->
-            <div class="error-actions">
-                <a href="/" class="btn-primary">
-                    <i class="fas fa-arrow-left"></i> 返回首页
-                </a>
-                <a href="https://github.com/Cyph3rLab/Network-Engineering-Notes" target="_blank" rel="noopener" class="btn-secondary">
-                    <i class="fab fa-github"></i> 探索项目
-                </a>
-                <a href="https://note.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener" class="btn-secondary" style="border-color:rgba(var(--accent-rgb),0.4);">
-                    <i class="fas fa-blog"></i> 博客
-                </a>
-                <a href="https://alist.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener" class="btn-secondary" style="border-color:rgba(var(--accent-rgb),0.4);">
-                    <i class="fas fa-music"></i> 音乐
-                </a>
-                <a href="mailto:cyph3r1ab@outlook.com" class="btn-secondary" style="border-color:transparent;">
-                    <i class="fas fa-envelope"></i> 联系作者
-                </a>
-            </div>
+    <p class="nf__hint reveal reveal--3">
+      <span class="p">$</span>ping /sec/log<br />
+      <span class="ok">64 bytes from /sec/log: icmp_seq=1 ttl=64 time=0.42 ms</span>
+      &nbsp;— 首页是通的<br />
+      提示：按 <kbd>T</kbd> 可以切换亮 / 暗主题
+    </p>
+  </section>
 
-            <!-- 额外提示 -->
-            <div style="margin-top:48px;padding:16px 24px;background:var(--bg-elev);border:1px solid var(--border);border-radius:4px;display:inline-block;">
-                <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);margin:0;letter-spacing:0.04em;">
-                    <span style="color:var(--fg);">$</span> echo "从数据包到安全，从协议到防御" 
-                    <span style="color:var(--accent);">⏎</span>
-                </p>
-            </div>
+</main>
 
-        </div>
-    </section>
+<!-- ============================================================
+     FOOTER（与首页同一套）
+     ============================================================ -->
+<footer>
+  <div class="wrap footer__inner">
+    <!-- 打磨：装饰性打字，隐藏给读屏 -->
+    <p class="footer__cmd" aria-hidden="true">
+      <span class="p">$</span>
+      <span id="footer-typing" class="t"></span>
+      <span id="footer-cursor"></span>
+    </p>
 
-    <!-- ============================================================
-    FOOTER
-    ============================================================ -->
-    <footer style="padding:32px 28px;border-top:1px solid var(--border);text-align:center;background:var(--bg-elev);">
-        <div style="max-width:1000px;margin:0 auto;">
-            <p style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);margin:0 0 10px 0;">
-                © 2026 <span style="color:var(--fg);font-weight:500;">Cyph3r</span> · 网络安全学习笔记 · 无跟踪 · 无广告
-            </p>
-            <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-top:4px;">
-                <a href="mailto:cyph3r1ab@outlook.com" style="color:var(--muted);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:12px;transition:color 0.3s ease;">
-                    <i class="fas fa-envelope" style="margin-right:6px;"></i>cyph3r1ab@outlook.com
-                </a>
-                <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:12px;transition:color 0.3s ease;">
-                    <i class="fab fa-github" style="margin-right:6px;"></i>Cyph3rLab
-                </a>
-                <!-- 新增：博客与音乐（页脚） -->
-                <a href="https://note.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:12px;transition:color 0.3s ease;">
-                    <i class="fas fa-blog" style="margin-right:6px;"></i>博客
-                </a>
-                <a href="https://alist.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:12px;transition:color 0.3s ease;">
-                    <i class="fas fa-music" style="margin-right:6px;"></i>音乐
-                </a>
-                <span style="color:var(--border-strong);">|</span>
-                <span style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;">
-                    <i class="fas fa-terminal" style="margin-right:4px;"></i> exit 404
-                </span>
-            </div>
-        </div>
-    </footer>
+    <p class="footer__copy">
+      © 2026 <strong>Cyph3r</strong> · 网络安全学习笔记 · 无跟踪 · 无广告
+    </p>
 
-    <!-- ============================================================
-    JAVASCRIPT
-    ============================================================ -->
-    <script>
-        // ============================================================
-        // TYPEWRITER (404 副标题)
-        // ============================================================
-        const fallbackLines = [
-            "page not found.",
-            "route unavailable.",
-            "packet lost in transit.",
-            "you've reached the void.",
-            "let's get you back on track."
-        ];
-        const typeEl = document.getElementById('typewriter');
-        let gIdx = 0,
-            cIdx = 0,
-            deleting = false;
+    <div class="footer__links">
+      <a href="mailto:cyph3r1ab@outlook.com">
+        <i class="fas fa-envelope"></i> cyph3r1ab@outlook.com
+      </a>
+      <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener">
+        <i class="fab fa-github"></i> Cyph3rLab
+      </a>
+      <a href="https://note.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener">
+        <i class="fas fa-blog"></i> 博客
+      </a>
+      <a href="https://alist.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener">
+        <i class="fas fa-music"></i> 音乐
+      </a>
+    </div>
+  </div>
+</footer>
 
-        function tick404() {
-            const current = fallbackLines[gIdx];
-            if (deleting) {
-                cIdx--;
-                typeEl.textContent = current.slice(0, cIdx);
-                if (cIdx === 0) {
-                    deleting = false;
-                    gIdx = (gIdx + 1) % fallbackLines.length;
-                    setTimeout(tick404, 400);
-                    return;
-                }
-                setTimeout(tick404, 35);
-            } else {
-                cIdx++;
-                typeEl.textContent = current.slice(0, cIdx);
-                if (cIdx === current.length) {
-                    deleting = true;
-                    setTimeout(tick404, 2000);
-                    return;
-                }
-                setTimeout(tick404, 65 + Math.random() * 50);
-            }
-        }
-        tick404();
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+(function () {
+  'use strict';
 
-        // ============================================================
-        // READING PROGRESS BAR
-        // ============================================================
-        const progressBar = document.getElementById('progressBar');
+  // 打磨：提到最前，供波纹和其它动效共用
+  var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        function updateProgress() {
-            const scrollTop = window.scrollY;
-            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-            const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
-            progressBar.style.width = progress + '%';
-        }
-        window.addEventListener('scroll', updateProgress, { passive: true });
-        updateProgress();
+  /* ==========================================================
+     THEME TOGGLE —— 只有 light / dark（单个圆形按钮，点击即切换）
+     ========================================================== */
+  var themeToggle = document.querySelector('.theme-toggle');
+  var root = document.documentElement;
+  var THEMES = ['light', 'dark'];
 
-        // ============================================================
-        // THEME TOGGLE
-        // ============================================================
-        const themeButtons = document.querySelectorAll('.theme-btn');
-        const root = document.documentElement;
+  function setTheme(theme, animate) {
+    if (animate !== false) {
+      document.body.classList.add('theme-anim');
+      setTimeout(function () {
+        document.body.classList.remove('theme-anim');
+      }, 700);
+    }
+    root.setAttribute('data-theme', theme);
+    try { localStorage.setItem('sec-log-theme', theme); } catch (e) {}
+    // 打磨：同步移动端地址栏配色
+    var meta = document.getElementById('themeColorMeta');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0c0b09' : '#f5efe2');
+    if (themeToggle) {
+      // 按钮不认识当前状态就废了 —— 用 aria-pressed + 动态标签说明"点下去会变成什么"
+      var isDark = theme === 'dark';
+      themeToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+      themeToggle.setAttribute('aria-label', isDark ? '切换到亮色主题' : '切换到暗色主题');
+    }
+  }
 
-        function setTheme(theme, animate = true) {
-            if (animate) {
-                document.body.classList.add('theme-anim');
-                setTimeout(() => document.body.classList.remove('theme-anim'), 700);
-            }
-            root.setAttribute('data-theme', theme);
-            try {
-                localStorage.setItem('sec-log-theme', theme);
-            } catch (e) {}
-            themeButtons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.theme === theme);
-            });
-        }
+  if (themeToggle) {
+    themeToggle.addEventListener('click', function () {
+      var current = root.getAttribute('data-theme');
+      setTheme(THEMES[(THEMES.indexOf(current) + 1) % THEMES.length], true);
+    });
+  }
 
-        themeButtons.forEach(btn => {
-            btn.addEventListener('click', () => setTheme(btn.dataset.theme));
-        });
+  var initialTheme = 'light';
+  try {
+    var saved = localStorage.getItem('sec-log-theme');
+    if (saved === 'dark' || saved === 'light') {
+      initialTheme = saved;
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      // 打磨：没存过偏好时跟随系统
+      initialTheme = 'dark';
+    }
+  } catch (e) {}
+  setTheme(initialTheme, false);
 
-        let initialTheme = 'dark';
-        try {
-            const saved = localStorage.getItem('sec-log-theme');
-            if (saved && ['dark', 'light', 'cyber'].includes(saved)) initialTheme = saved;
-        } catch (e) {}
-        setTheme(initialTheme, false);
+  /* 键盘快捷键 T：亮 / 暗循环
+     打磨：排除组合键（Cmd/Ctrl+T 会开新标签页，不该顺手把主题也切了），
+     并覆盖 SELECT / contenteditable 这些输入场景 */
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var el = e.target;
+    var tag = (el.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (el.isContentEditable) return;
+    if (e.key === 't' || e.key === 'T') {
+      var current = root.getAttribute('data-theme');
+      var next = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length];
+      setTheme(next, true);
+    }
+  });
 
-        // ============================================================
-        // MOUSE GLOW
-        // ============================================================
-        const mouseGlow = document.getElementById('mouseGlow');
-        const heroSection = document.querySelector('section.bg-grid');
-        if (heroSection) {
-            heroSection.addEventListener('mousemove', (e) => {
-                const rect = heroSection.getBoundingClientRect();
-                mouseGlow.style.left = (e.clientX - rect.left) + 'px';
-                mouseGlow.style.top = (e.clientY - rect.top) + 'px';
-                mouseGlow.style.opacity = '1';
-            });
-            heroSection.addEventListener('mouseleave', () => {
-                mouseGlow.style.opacity = '0';
-            });
-        }
+  /* ==========================================================
+     SCROLL REVEAL
+     ========================================================== */
+  var revealObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
 
-        // ============================================================
-        // KEYBOARD SHORTCUT: T
-        // ============================================================
-        document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            if (e.key === 't' || e.key === 'T') {
-                const current = root.getAttribute('data-theme');
-                const order = ['dark', 'light', 'cyber'];
-                const next = order[(order.indexOf(current) + 1) % order.length];
-                setTheme(next);
-            }
-        });
+  document.querySelectorAll('.reveal').forEach(function (el) {
+    revealObserver.observe(el);
+  });
 
-        // ============================================================
-        // BG GRID PARALLAX
-        // ============================================================
-        window.addEventListener('scroll', () => {
-            const scrolled = window.scrollY;
-            const heroGrid = heroSection;
-            if (heroGrid && scrolled < window.innerHeight) {
-                heroGrid.style.backgroundPosition = `center ${scrolled * 0.3}px`;
-            }
-        }, { passive: true });
+  /* ==========================================================
+     FOOTER TYPING
+     ========================================================== */
+  (function initFooterTyping() {
+    var typingEl = document.getElementById('footer-typing');
+    var cursorEl = document.getElementById('footer-cursor');
+    if (!typingEl || !cursorEl) return;
 
-        // ============================================================
-        // NAV SCROLL EFFECT
-        // ============================================================
-        const nav = document.getElementById('nav');
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 60) {
-                nav.classList.add('scrolled');
-            } else {
-                nav.classList.remove('scrolled');
-            }
-        }, { passive: true });
+    var text = 'echo "from packets to protocols, from systems to security."';
+    var index = 0;
+    var isComplete = false;
+    var started = false;
 
-        // ============================================================
-        // BUTTON RIPPLE
-        // ============================================================
-        document.querySelectorAll('.btn-primary').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                const rect = this.getBoundingClientRect();
-                const ripple = document.createElement('span');
-                ripple.className = 'ripple';
-                const size = Math.max(rect.width, rect.height);
-                ripple.style.width = ripple.style.height = size + 'px';
-                ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
-                ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
-                this.appendChild(ripple);
-                setTimeout(() => ripple.remove(), 700);
-            });
-        });
+    function typeChar() {
+      if (index < text.length) {
+        typingEl.textContent += text.charAt(index);
+        index++;
+        setTimeout(typeChar, 34 + Math.random() * 46);
+      } else {
+        isComplete = true;
+        cursorEl.classList.add('done');
+      }
+    }
 
-        // ============================================================
-        // SMOOTH NAV ANCHOR SCROLL (for internal links)
-        // ============================================================
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    e.preventDefault();
-                    const navHeight = document.getElementById('nav').offsetHeight + 16;
-                    const targetPos = target.getBoundingClientRect().top + window.scrollY - navHeight;
-                    window.scrollTo({ top: targetPos, behavior: 'smooth' });
-                }
-            });
-        });
+    function startTyping() {
+      if (started || isComplete) return;
+      started = true;
+      cursorEl.classList.remove('done');
+      setTimeout(typeChar, 320);
+    }
 
-        console.log('🔒 /sec/log · 404 页面已加载');
-        console.log('⌨️  按 T 键切换主题');
-        console.log('🔄 页面未找到，但知识永远在路上');
-        console.log('🔗 博客与音乐链接已醒目添加至操作栏');
-    </script>
+    var footer = document.querySelector('footer');
+    if (!footer) return;
+
+    var footerObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && !isComplete) startTyping();
+      });
+    }, { threshold: 0.15 });
+
+    footerObserver.observe(footer);
+
+    if (footer.getBoundingClientRect().top < window.innerHeight) {
+      setTimeout(startTyping, 700);
+    }
+
+    window.addEventListener('load', function () {
+      if (!isComplete && footer.getBoundingClientRect().top < window.innerHeight) {
+        setTimeout(startTyping, 800);
+      }
+    });
+  })();
+
+  /* ==========================================================
+     BUTTON RIPPLE（点击波纹）
+     打磨：与首页同款。首页的按钮有波纹 JS，404 的 .button 只有 CSS 没接逻辑 ——
+     加回来，让"回到首页"的点击手感一致
+     ========================================================== */
+  document.querySelectorAll('.button').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      if (prefersReducedMotion) return;
+      var rect = this.getBoundingClientRect();
+      var ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      var size = Math.max(rect.width, rect.height);
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      this.appendChild(ripple);
+      setTimeout(function () { ripple.remove(); }, 700);
+    });
+  });
+
+  /* ==========================================================
+     本地预览便利：用 file:// 打开时 "/" 会指向磁盘根目录，
+     这里把站内绝对路径改写成同级文件，方便离线点开看看
+     打磨：只在 file:// 下生效，线上部署时这段会直接跳过
+     ========================================================== */
+  if (location.protocol === 'file:') {
+    document.querySelectorAll('a[href^="/"]').forEach(function (a) {
+      var h = a.getAttribute('href');
+      a.setAttribute('href', h === '/' ? 'index.html' : h.replace(/^\//, 'index.html'));
+    });
+  }
+
+  /* ==========================================================
+     LOG
+     ========================================================== */
+  console.log('%c404', 'color:#c2410c;font-weight:700;font-size:14px;');
+  console.log('⌨️  按 T 键切换主题（亮 / 暗）');
+})();
+</script>
 </body>
 </html>
