@@ -6,7 +6,7 @@
 <title>404 — /sec/log</title>
 <meta name="description" content="这个地址没有回应 — /sec/log，Cyph3r 的网络安全学习笔记。" />
 <meta name="robots" content="noindex" />
-<!-- 打磨：移动端地址栏配色，跟随主题（head 脚本 + setTheme 里同步更新） -->
+<!-- 移动端地址栏配色，跟随主题（head 脚本 + setTheme 里同步更新） -->
 <meta name="theme-color" content="#f5efe2" id="themeColorMeta" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,8 +14,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 <script>
   // 提前应用主题，防止闪烁（与首页共用同一个 key，两边切换互相同步）
-  // 打磨：localStorage 里没有显式选择时，回落到系统深色偏好；
-  //       同时同步 theme-color，免得移动端地址栏颜色和页面不一致
   (function () {
     try {
       var t = localStorage.getItem('sec-log-theme');
@@ -32,9 +30,6 @@
 </script>
 <style>
 /* ============================================================
-   以下样式从首页原样复用 —— tokens、导航、按钮、页脚、入场动画
-   ============================================================ */
-/* ============================================================
    FONT STACKS
    ============================================================ */
 :root {
@@ -43,24 +38,19 @@
   --font-display: 'Fraunces', 'Instrument Serif', 'Noto Serif SC',
                   'Songti SC', 'SimSun', serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas,
-               /* 等宽栈里原本没有任何中文字体，中文只能掉到 monospace 兜底
-                  （Windows 上是宋体），和 JetBrains Mono 的英文完全不搭。
-                  这里按 macOS → Windows 顺序补上黑体；中文每个字恒为 1em 宽，
-                  放在等宽语境里依然对齐。 */
                'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
                'Noto Sans SC', monospace;
-  /* 衬线正文栈：中英文都用衬线（Noto Serif SC 自带一套 Source Serif 拉丁字形，
-     正好是"中英同族"的搭配），无需额外加载字体 —— 标题已经在用它了。
-     用于「导语」段落：.hero__lead / .method-intro */
   --font-serif-cn: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+
+  --ease-out: cubic-bezier(0.22, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ============================================================
-   THEME TOKENS —— 默认亮色
+   THEME TOKENS
    ============================================================ */
 :root,
 :root[data-theme="light"] {
-  /* 打磨：声明原生配色方案，滚动条 / 表单控件 / 自动填充底色跟着走 */
   color-scheme: light;
   --bg: #f5efe2;
   --bg-elev: #fbf6ea;
@@ -75,8 +65,15 @@
   --border-strong: rgba(26, 23, 18, 0.26);
   --card: #fffdf5;
   --nav-bg: rgba(245, 239, 226, 0.78);
+  --nav-bg-scrolled: rgba(245, 239, 226, 0.88);
   --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
   --glow: rgba(194, 65, 12, 0.12);
+  --glass-bg: rgba(255, 253, 245, 0.55);
+  --glass-border: rgba(26, 23, 18, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.6);
+  /* 故障层：暖橙 + 青，和站内 accent / accent-2 同源 */
+  --glitch-a: rgba(194, 65, 12, 0.55);
+  --glitch-b: rgba(14, 116, 144, 0.45);
 }
 
 :root[data-theme="dark"] {
@@ -94,8 +91,14 @@
   --border-strong: rgba(240, 234, 214, 0.22);
   --card: #131109;
   --nav-bg: rgba(12, 11, 9, 0.72);
+  --nav-bg-scrolled: rgba(12, 11, 9, 0.86);
   --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
   --glow: rgba(245, 158, 11, 0.15);
+  --glass-bg: rgba(28, 26, 20, 0.45);
+  --glass-border: rgba(240, 234, 214, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.07);
+  --glitch-a: rgba(245, 158, 11, 0.7);
+  --glitch-b: rgba(6, 182, 212, 0.6);
 }
 
 /* ============================================================
@@ -104,8 +107,6 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html {
   scroll-behavior: smooth;
-  /* 打磨：如果将来有人在 404 页里加锚点（或者从别处带 hash 跳进来），
-     原生跳转也得给固定导航让出空间 */
   scroll-padding-top: 88px;
 }
 
@@ -120,9 +121,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   opacity: 0;
-  /* 只淡入，不做位移 —— body 上一旦有 transform（哪怕终值是 translateY(0)），
-     body 就会成为 position:fixed 后代的包含块，导航栏和顶部进度条会退化成
-     “相对 body 绝对定位”，往下滚动时跟着页面一起滚走。入场位移改到 main 上。 */
   animation: pageFadeIn 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 @keyframes pageFadeIn {
@@ -130,7 +128,6 @@ body {
   100% { opacity: 1; }
 }
 
-/* 入场位移放在 main 上：main 内部没有任何 position:fixed 元素，安全 */
 main {
   animation: contentRise 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
@@ -169,9 +166,6 @@ body.theme-anim *::after {
   border-radius: 2px;
 }
 
-/* ============================================================
-   打磨：跳转到主内容（与首页同一套，键盘 / 读屏用户跳过导航）
-   ============================================================ */
 .skip-link {
   position: fixed;
   top: 8px; left: 8px;
@@ -209,22 +203,22 @@ body.theme-anim *::after {
 }
 
 /* ============================================================
-   NAV
+   NAV —— 与首页同源：亚克力玻璃 + 滚动后更"实" + 共享指示条
    ============================================================ */
 #nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50;
   background: var(--nav-bg);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
   transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
 }
 #nav.scrolled {
-  background: var(--bg-elev);
-  box-shadow: var(--nav-shadow);
+  background: var(--nav-bg-scrolled);
+  box-shadow: var(--nav-shadow), inset 0 1px 0 var(--glass-highlight);
   border-bottom-color: var(--border-strong);
 }
-/* 打磨：不支持 backdrop-filter 的浏览器上，半透明导航会透出内容 —— 退回纯色 */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   #nav { background: var(--bg); }
   #nav.scrolled { background: var(--bg-elev); }
@@ -255,7 +249,20 @@ body.theme-anim *::after {
   vertical-align: text-bottom;
 }
 .nav__right { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-.nav__links { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.nav__links { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: relative; }
+.nav__links.has-indicator .nav__link::after { display: none; }
+.nav__indicator {
+  position: absolute;
+  left: 0; bottom: -2px;
+  height: 1px;
+  width: 0;
+  background: var(--accent);
+  transform: translateX(0);
+  opacity: 0;
+  transition: transform 0.4s var(--ease-out), width 0.4s var(--ease-out), opacity 0.25s ease;
+  pointer-events: none;
+}
+.nav__indicator.visible { opacity: 1; }
 .nav__link {
   font-family: var(--font-mono);
   font-size: 11px; letter-spacing: 0.08em;
@@ -268,12 +275,14 @@ body.theme-anim *::after {
 }
 .nav__link::after {
   content: '';
-  position: absolute; left: 0; bottom: -2px;
-  width: 0; height: 1px; background: var(--accent);
-  transition: width 0.35s cubic-bezier(0.4,0,0.2,1);
+  position: absolute; left: 0; right: 0; bottom: -2px;
+  height: 1px; background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.45s var(--ease-out);
 }
 .nav__link:hover { color: var(--fg); }
-.nav__link:hover::after { width: 100%; }
+.nav__link:hover::after { transform: scaleX(1); transform-origin: left center; }
 .nav__icon {
   display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--font-mono);
@@ -284,8 +293,6 @@ body.theme-anim *::after {
 .nav__icon:hover { color: var(--accent); }
 .nav__icon i { font-size: 14px; }
 
-/* theme toggle */
-/* theme toggle —— 单个圆形按钮，内嵌「对半圆」图标（明暗对比的经典符号） */
 .theme-toggle {
   flex-shrink: 0;
   width: 32px; height: 32px;
@@ -295,188 +302,24 @@ body.theme-anim *::after {
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
-  transition: border-color 0.3s ease;
+  transition: border-color 0.3s ease, transform 0.3s var(--ease-spring);
 }
 .theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:active { transform: scale(0.9); }
 .theme-toggle__icon {
   width: 14px; height: 14px;
   border-radius: 50%;
   border: 1px solid currentColor;
   color: var(--fg-dim);
-  /* 左半实心、右半留白 —— 就是图二那个符号，纯 CSS 画，不用图标字体 */
   background: linear-gradient(90deg, currentColor 0 50%, transparent 50% 100%);
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+  transition: transform 0.8s var(--ease-spring), color 0.3s ease;
 }
 .theme-toggle:hover .theme-toggle__icon { color: var(--fg); }
-/* 切到暗色时把填充转到另一半 —— 半月相位翻转 */
 :root[data-theme="dark"] .theme-toggle__icon { transform: rotate(180deg); }
 
 /* ============================================================
-   HERO
+   BUTTONS
    ============================================================ */
-.hero {
-  padding-top: clamp(120px, 16vh, 180px);
-  padding-bottom: clamp(56px, 8vh, 96px);
-  position: relative;
-}
-.hero__eyebrow {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: clamp(32px, 5vh, 52px);
-  min-height: 1.6em;
-}
-.hero__prompt { color: var(--accent); font-weight: 700; }
-.cursor::after {
-  content: '▌';
-  color: var(--accent);
-  margin-left: 2px;
-  animation: blink 1s steps(1) infinite;
-}
-@keyframes blink {
-  0%, 50%   { opacity: 1; }
-  51%, 100% { opacity: 0; }
-}
-
-.hero__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(0, 0.85fr);
-  gap: clamp(32px, 5vw, 76px);
-  align-items: end;
-}
-@media (max-width: 880px) {
-  .hero__grid { grid-template-columns: 1fr; align-items: start; gap: 44px; }
-}
-
-/* 注册光斑半径，让它成为一个可过渡的 <length>：
-   收尾时把半径收到 0，光就"收"回去而不是"啪"地断电。
-   不支持 @property 的浏览器会退化成瞬间开关，功能不受影响。 */
-@property --spot-r {
-  syntax: '<length>';
-  inherits: true;
-  initial-value: 120px;
-}
-
-/* ── 标题：手电筒聚光翻译 ────────────────────────────── */
-.hero__title {
-  margin-bottom: clamp(22px, 3.5vh, 34px);
-  /* 光斑圆心坐标（由 JS 写入） */
-  --spot-x: -9999px;
-  --spot-y: -9999px;
-  /* 光斑半径 —— 缩小，更聚焦 */
-  --spot-r: clamp(70px, 11vw, 130px);
-  /* 光斑边缘过渡带起点 —— 就是这一个数字控制"软硬"：
-     98% ≈ 硬边（≈2.6px 过渡），最干净；
-     往下调会更柔，但中文层也会跟着半透明，
-     而两层显示的是**不同文字**，于是中英会叠出重影。
-     实测 94% 起就能看出糊，90% 已经明显，所以默认留在 98%。 */
-  --spot-feather: 98%;
-  transition: --spot-r 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.title-stack {
-  position: relative;
-  display: block;
-  isolation: isolate;
-  /* 提升层级：右侧 aside 带 transform（.reveal）会形成层叠上下文，
-     标题若有一点溢出就会被它压住 —— 这里保证标题始终绘制在最上层。 */
-  z-index: 3;
-}
-
-/* 两层文字共用同一套排版度量 —— 行盒高度严格一致 */
-.title-layer {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: clamp(2.1rem, 5.8vw, 4.3rem);
-  line-height: 1.1;
-  letter-spacing: -0.025em;
-}
-.title-layer em {
-  font-style: italic;
-  color: var(--accent);
-  font-family: 'Instrument Serif', var(--font-display);
-  font-weight: 400;
-}
-
-/* 中文层：光斑覆盖处隐形。
-   两层必须用**同一个 --spot-feather**，否则过渡带里两层都半透明，
-   而它们显示的是不同文字 —— 会叠出重影。 */
-.title-layer--zh {
-  display: block;
-  -webkit-mask-image: radial-gradient(
-    circle var(--spot-r) at var(--spot-x) var(--spot-y),
-    transparent 0%,
-    transparent var(--spot-feather),
-    #000 100%
-  );
-  mask-image: radial-gradient(
-    circle var(--spot-r) at var(--spot-x) var(--spot-y),
-    transparent 0%,
-    transparent var(--spot-feather),
-    #000 100%
-  );
-}
-
-/* 英文译文层：字号更大，仅光斑范围内可见（与中文层严格互斥） */
-.title-layer--en {
-  position: absolute;
-  left: 0;
-  top: 0;
-  /* 宽度跟随文字真实宽度（不再写死 100%）：mask 会按 border-box 裁切内容，
-     固定 100% 时超出列宽的部分会被整段裁掉，表现为“这一行不显示 / 被遮挡”。
-     min-width:100% 保证文字较短时仍与中文层同宽，光斑坐标不受影响。 */
-  width: max-content;
-  min-width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;   /* 与中文逐行对齐 */
-  /* 字号：中文的 0.9 倍（= 5.8vw × 0.9）。这只是上限，
-     JS 会按“每行实际可用的宽度”再自适应，确保永不裁切。 */
-  font-size: clamp(1.89rem, 5.22vw, 3.87rem);
-  /* 行盒高度兜底（JS 会改成中文行盒的实测 px 值） */
-  line-height: 1.222;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  pointer-events: none;
-  user-select: none;
-
-  -webkit-mask-image: radial-gradient(
-    circle var(--spot-r) at var(--spot-x) var(--spot-y),
-    #000 0%,
-    #000 var(--spot-feather),
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    circle var(--spot-r) at var(--spot-x) var(--spot-y),
-    #000 0%,
-    #000 var(--spot-feather),
-    transparent 100%
-  );
-}
-
-/* 导语用衬线：紧贴在衬线大标题下面的第一段，跟标题同一个声音；
-   正文仍然用无衬线 —— 中文小字号下无衬线更耐读，
-   衬线/无衬线的对比本身就是这一页的层级感来源。 */
-.hero__lead {
-  font-family: var(--font-serif-cn);
-  font-size: clamp(0.98rem, 1.35vw, 1.12rem);
-  line-height: 1.85;
-  color: var(--fg-dim);
-  max-width: 620px;
-  margin-bottom: 0;
-}
-.hero__lead strong { color: var(--fg); font-weight: 600; }
-
-.hero__actions {
-  display: flex; align-items: center;
-  gap: 14px 26px;
-  flex-wrap: wrap;
-  margin-top: clamp(30px, 4vh, 44px);
-}
-
-/* buttons & links */
 .button {
   position: relative;
   overflow: hidden;
@@ -503,16 +346,6 @@ body.theme-anim *::after {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px -12px rgba(var(--accent-rgb), 0.7);
 }
-.button--ghost {
-  border-color: var(--border-strong);
-  color: var(--fg-dim);
-  --ripple-color: rgba(var(--accent-rgb), 0.22);
-}
-.button--ghost:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: translateY(-2px);
-}
 .button .ripple {
   position: absolute;
   border-radius: 50%;
@@ -524,6 +357,8 @@ body.theme-anim *::after {
 @keyframes rippleAnim {
   to { transform: scale(4); opacity: 0; }
 }
+.button span[aria-hidden] { display: inline-block; transition: transform 0.4s var(--ease-out); }
+.button:hover span[aria-hidden] { transform: translateX(4px); }
 
 .text-link {
   position: relative;
@@ -543,44 +378,334 @@ body.theme-anim *::after {
   transform: translateY(-1px);
 }
 
-/* aside note */
-.hero__note {
-  border-top: 1px solid var(--border-strong);
-  padding-top: 18px;
+/* ============================================================
+   404 —— 主区块
+   ============================================================ */
+.notfound {
+  padding-top: clamp(120px, 16vh, 180px);
+  padding-bottom: clamp(80px, 12vh, 140px);
 }
-.hero__note-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  margin-bottom: 18px;
-}
-.hero__note-no {
+
+.nf__eyebrow {
+  display: flex; align-items: center; gap: 8px;
   font-family: var(--font-mono);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: clamp(20px, 3vh, 36px);
+  min-height: 1.6em;
+}
+.nf__eyebrow .p { color: var(--accent); font-weight: 700; }
+.cursor::after {
+  content: '▌';
   color: var(--accent);
+  margin-left: 2px;
+  animation: blink 1s steps(1) infinite;
 }
-.hero__note-list {
-  list-style: none;
-  margin-bottom: 22px;
+@keyframes blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
-.hero__note-list li {
-  font-size: 0.93rem;
-  color: var(--fg-dim);
-  padding: 9px 0;
-  border-bottom: 1px solid var(--border);
-  transition: padding-left 0.3s ease, color 0.3s ease;
+
+/* ---------- 故障 404 字标 ----------
+   主层是 fg 色的实字；::before / ::after 是两个彩色副本，
+   靠 clip-path 只露出窄条 + 水平偏移，构成"撕裂错位"。
+   大部分时间是透明的，每隔 2~3 秒闪一次，不闪瞎眼。 */
+.nf__glitch-wrap {
+  position: relative;
+  margin-bottom: clamp(10px, 1.6vh, 16px);
 }
-.hero__note-list li:hover {
-  padding-left: 6px;
+/* ---------- 故障 404 字标 ---------- */
+.glitch {
+  position: relative;
+  display: inline-block;
+  /* 使用 JetBrains Mono：终端日志感更强 */
+  font-family: 'JetBrains Mono', var(--font-mono);
+  font-weight: 700;
+  /* ⚠️ 这一行刚才丢失了，必须补上！ */
+  font-size: clamp(5.5rem, 18vw, 13.5rem);
+  line-height: 0.84;
+  letter-spacing: -0.03em;
+  font-feature-settings: "zero" 0; /* 关掉带斜杠的 0（视你的喜好保留或删掉） */
   color: var(--fg);
+  user-select: none;
+  /* 色差偏移 */
+  text-shadow:
+    0.015em 0 0 var(--glitch-a),
+    -0.015em 0 0 var(--glitch-b);
+  animation: glitch-shake 5.2s steps(1, end) infinite;
 }
-.hero__note-list li:last-child { border-bottom: none; }
+
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* 初始完全裁掉，动画负责把它揭开 */
+  clip-path: inset(0 0 100% 0);
+  white-space: nowrap;
+}
+
+.glitch::before {
+  color: var(--glitch-a);
+  animation: glitch-a 2.4s steps(1, end) infinite;
+}
+
+.glitch::after {
+  color: var(--glitch-b);
+  animation: glitch-b 3.1s steps(1, end) infinite;
+}
+
+/* 撕裂切片 A：细长条，偏移偏左 */
+@keyframes glitch-a {
+  0%, 100% { clip-path: inset(0 0 100% 0); transform: translate(0, 0); }
+  6%   { clip-path: inset(8% 0 74% 0);  transform: translate(-0.022em, 0); }
+  7%   { clip-path: inset(8% 0 74% 0);  transform: translate(0.028em, 0); }
+  9%   { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+  46%  { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+  48%  { clip-path: inset(52% 0 28% 0); transform: translate(0.038em, 0); }
+  50%  { clip-path: inset(52% 0 28% 0); transform: translate(-0.032em, 0); }
+  52%  { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+  78%  { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+  80%  { clip-path: inset(28% 0 58% 0); transform: translate(-0.03em, 0); }
+  81%  { clip-path: inset(28% 0 58% 0); transform: translate(0.034em, 0); }
+  83%  { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+}
+
+/* 撕裂切片 B：更宽、时间轴错开，看起来才不像同一套程序 */
+@keyframes glitch-b {
+  0%, 100% { clip-path: inset(0 0 100% 0); transform: translate(0, 0); }
+  14%  { clip-path: inset(64% 0 18% 0); transform: translate(0.036em, 0); }
+  15%  { clip-path: inset(64% 0 18% 0); transform: translate(-0.026em, 0); }
+  17%  { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+  54%  { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+  56%  { clip-path: inset(38% 0 46% 0); transform: translate(-0.042em, 0); }
+  57%  { clip-path: inset(38% 0 46% 0); transform: translate(0.03em, 0); }
+  59%  { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+  88%  { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+  90%  { clip-path: inset(12% 0 80% 0); transform: translate(0.026em, 0); }
+  91%  { clip-path: inset(0 0 100% 0);  transform: translate(0, 0); }
+}
+
+/* 整字抖动：极克制 —— 一个 5.2s 的周期里只跳两下，每下 1~2px */
+@keyframes glitch-shake {
+  0%, 18%, 21%, 62%, 65%, 100% { transform: translate(0, 0) skewX(0); }
+  19% { transform: translate(-1px, 0) skewX(-0.35deg); }
+  20% { transform: translate(1px, 0)  skewX(0.35deg); }
+  63% { transform: translate(1px, 0)  skewX(0.3deg); }
+  64% { transform: translate(-1px, 0) skewX(-0.3deg); }
+}
+
+/* 鼠标压上去 → 故障加剧（呼应站内"对操作有回应"的原则） */
+@media (hover: hover) and (pointer: fine) {
+  .glitch:hover { animation-duration: 1.8s; }
+  .glitch:hover::before { animation-duration: 0.9s; }
+  .glitch:hover::after  { animation-duration: 1.15s; }
+}
+
+.nf__code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: clamp(22px, 3.5vh, 34px);
+}
+
+.nf__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2.1rem, 5.8vw, 4.3rem);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  margin-bottom: clamp(22px, 3.5vh, 34px);
+  max-width: 16em;
+}
+.nf__title em {
+  font-style: italic;
+  color: var(--accent);
+  font-family: 'Instrument Serif', var(--font-display);
+  font-weight: 400;
+}
+
+.nf__lead {
+  font-family: var(--font-serif-cn);
+  font-size: clamp(0.98rem, 1.35vw, 1.12rem);
+  line-height: 1.85;
+  color: var(--fg-dim);
+  max-width: 640px;
+  margin-bottom: clamp(28px, 4vh, 42px);
+}
+.nf__lead strong { color: var(--fg); font-weight: 600; }
+
+.nf__actions {
+  display: flex; align-items: center; gap: 14px 26px; flex-wrap: wrap;
+  margin-bottom: clamp(56px, 9vh, 96px);
+}
+
+/* ---------- 「也许你在找这些」 ---------- */
+.nf__routes {
+  margin-bottom: clamp(56px, 9vh, 96px);
+}
+.nf__routes .kicker {
+  display: block;
+  margin-bottom: 20px;
+}
+.nf__routes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+@media (max-width: 880px) {
+  .nf__routes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .nf__routes-grid { grid-template-columns: 1fr; }
+}
+
+.nf-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 22px 20px 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.4s ease, background 0.4s ease,
+              box-shadow 0.4s ease, transform 0.4s var(--ease-out);
+  /* 与首页 dir-card 同款「纸张堆叠」 */
+  box-shadow:
+    4px 5px 0 0 var(--bg-elev-2),
+    4px 5px 0 1px var(--border),
+    8px 10px 0 0 var(--bg),
+    8px 10px 0 1px var(--border);
+}
+.nf-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-elev-2);
+  transform: translateY(-3px);
+  box-shadow:
+    6px 8px 0 0 var(--bg-elev-2),
+    6px 8px 0 1px var(--border),
+    12px 16px 0 0 var(--bg),
+    12px 16px 0 1px var(--border),
+    0 22px 44px -22px rgba(var(--accent-rgb), 0.35);
+}
+
+.nf-card__top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.nf-card__no {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+.nf-card__kind {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 3px 8px;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 2px;
+  background: rgba(var(--accent-rgb), 0.06);
+}
+.nf-card h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+  transition: color 0.3s ease;
+}
+.nf-card:hover h3 { color: var(--accent); }
+.nf-card p {
+  font-size: 0.87rem;
+  line-height: 1.7;
+  color: var(--muted);
+  flex: 1;
+}
+.nf-card__arrow {
+  position: absolute;
+  right: 20px; bottom: 18px;
+  font-size: 14px;
+  color: var(--muted);
+  transition: transform 0.35s ease, color 0.35s ease;
+}
+.nf-card:hover .nf-card__arrow {
+  color: var(--accent);
+  transform: translate(3px, -3px);
+}
+
+/* ---------- 终端回显：traceroute / ping ---------- */
+.nf__trace {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 2px;
+  padding: 20px 24px;
+  max-width: 720px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.nf__trace:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--accent);
+  box-shadow: 0 12px 30px -20px rgba(var(--accent-rgb), 0.4);
+}
+.nf__trace-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.nf__trace-list {
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 2;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.nf__trace-list li {
+  display: grid;
+  grid-template-columns: 28px 140px minmax(0, 1fr);
+  gap: 12px;
+}
+.nf__trace-list .hop { color: var(--fg-dim); }
+.nf__trace-list .to  { color: var(--muted); }
+.nf__trace-list .tm  { color: var(--muted); }
+.nf__trace-list .bad { color: var(--accent); }
+@media (max-width: 480px) {
+  .nf__trace-list li { grid-template-columns: 20px 110px minmax(0, 1fr); gap: 8px; font-size: 0.74rem; }
+}
+
+.nf__trace-foot {
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.9;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.nf__trace-foot .p { color: var(--accent); font-weight: 700; margin-right: 6px; }
+.nf__trace-foot .ok { color: var(--fg-dim); }
+.nf__trace-foot .note { display: block; margin-top: 6px; color: var(--muted); }
+.nf__trace-foot kbd {
+  font-family: var(--font-mono); font-size: 0.95em;
+  padding: 1px 6px; border: 1px solid var(--border-strong);
+  border-radius: 2px; color: var(--fg); background: var(--bg);
+}
 
 /* ============================================================
    FOOTER
-   打磨：原来这里连着两行 `/* ===` 开注释块 —— CSS 注释不嵌套，
-   第一行的 `/*` 一直吃到 FOOTER 标题后的 `*/` 才闭合，
-   中间那行 `/* ===` 只是注释里的普通文字。渲染没问题，但看起来像漏了。
-   已合并成一个干净的注释块。
    ============================================================ */
 footer {
   border-top: 1px solid var(--border);
@@ -660,123 +785,41 @@ footer {
 @media (max-width: 768px) {
   .nav__links { gap: 14px; }
   .nav__link { font-size: 10px; }
-  .stats-bar__inner { grid-template-columns: 1fr; gap: 18px; }
-  .stat { flex-direction: row; align-items: baseline; gap: 12px; }
-  .stat__num { font-size: 1.4rem; }
-  .method-list li { grid-template-columns: 40px minmax(0,1fr); gap: 12px; }
-  .goal-item { grid-template-columns: 36px minmax(0,1fr); gap: 14px; }
-  .goal-item--final { padding-left: 12px; margin-left: -12px; }
-  .contact-row { flex-direction: column; align-items: flex-start; }
-  .contact-pill { font-size: 11px; padding: 9px 15px 9px 13px; }
-  .dir-card { transform: none !important; }
 }
 @media (max-width: 480px) {
   .nav__right { gap: 12px; }
   .nav__links { gap: 12px; }
   .theme-toggle { width: 28px; height: 28px; }
   .theme-toggle__icon { width: 13px; height: 13px; }
-  .hero__actions { gap: 12px 18px; }
+  .nf__actions { gap: 12px 18px; }
   .button { padding: 12px 18px; font-size: 10px; }
-  .repo-card { padding: 16px 16px; }
-  .method-example { padding: 16px 18px; }
+  .nf__trace { padding: 16px 18px; }
 }
 
+/* 关掉动效：故障层完全静止 —— 只保留 text-shadow 那层极淡的色偏，
+   不再有撕裂和抖动。这对光敏/晕动症用户是必要的，不是可选项。 */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
-  html { scroll-behavior: auto !important; }   /* 平滑滚动也要关掉 */
-  body { animation: none !important; opacity: 1 !important; transform: none !important; }
+  html { scroll-behavior: auto !important; }
+  body { animation: none !important; opacity: 1 !important; }
   main { animation: none !important; opacity: 1 !important; transform: none !important; }
-  .reveal, .goal-item { opacity: 1 !important; transform: none !important; }
-  /* 关掉动效时线必须直接画满，否则分隔线会一直停在 scaleX(0) → 整列没有分隔线 */
-  .goal-item::after { transform: none !important; }
+  .reveal { opacity: 1 !important; transform: none !important; }
   #footer-cursor { display: none !important; }
-  .marquee { animation: none !important; }
-}
 
-/* ============================================================
-   404 —— 只加这一块，上面的 tokens / 导航 / 按钮 / 页脚全部沿用首页
-   ============================================================ */
-.notfound {
-  padding-top: clamp(130px, 20vh, 220px);
-  padding-bottom: clamp(90px, 14vh, 170px);
+  .glitch { animation: none !important; }
+  .glitch::before,
+  .glitch::after { animation: none !important; display: none !important; }
 }
-.nf__eyebrow {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: clamp(26px, 4vh, 44px);
-  min-height: 1.6em;
-}
-.nf__eyebrow .p { color: var(--accent); font-weight: 700; }
-
-.nf__code {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 20px;
-}
-.nf__title {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: clamp(2rem, 5.4vw, 4rem);
-  line-height: 1.12;
-  letter-spacing: -0.025em;
-  margin-bottom: clamp(22px, 3.5vh, 34px);
-  max-width: 16em;
-}
-.nf__title em {
-  font-style: italic;
-  color: var(--accent);
-  font-family: 'Instrument Serif', var(--font-display);
-  font-weight: 400;
-}
-.nf__lead {
-  font-family: var(--font-serif-cn);   /* 导语用衬线，与首页一致 */
-  font-size: clamp(0.98rem, 1.35vw, 1.12rem);
-  line-height: 1.85;
-  color: var(--fg-dim);
-  max-width: 620px;
-  margin-bottom: clamp(28px, 4vh, 42px);
-}
-.nf__actions {
-  display: flex; align-items: center; gap: 14px 26px; flex-wrap: wrap;
-}
-.nf__hint {
-  margin-top: clamp(38px, 6vh, 64px);
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  line-height: 1.9;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  max-width: 620px;
-}
-.nf__hint .p { color: var(--accent); font-weight: 700; margin-right: 6px; }
-.nf__hint .ok { color: var(--fg-dim); }
-.nf__hint kbd {
-  font-family: var(--font-mono); font-size: 0.95em;
-  padding: 1px 5px; border: 1px solid var(--border-strong);
-  border-radius: 2px; color: var(--fg);
-}
-
 </style>
 </head>
 <body>
 
-<!-- 打磨：键盘 / 读屏用户跳过导航（与首页一致） -->
 <a class="skip-link" href="#main">跳到主内容</a>
 
-<!-- ============================================================
-     NAV（与首页同一套，站内锚点指回首页）
-     ============================================================ -->
 <nav id="nav">
   <div class="nav__inner">
     <a href="/" class="brand">
@@ -806,7 +849,6 @@ footer {
 
 <main>
 
-  <!-- 打磨：加 id，供 skip-link 定位 -->
   <section class="notfound wrap" id="main">
     <p class="nf__eyebrow reveal">
       <span class="p">$</span>
@@ -814,7 +856,12 @@ footer {
       <span class="cursor" aria-hidden="true"></span>
     </p>
 
-    <p class="nf__code reveal reveal--1">HTTP 404 · destination unreachable</p>
+    <!-- 故障字标：主文字可读，伪元素由 CSS 生成（不会被读屏重复念） -->
+    <div class="nf__glitch-wrap">
+      <div class="glitch" data-text="404">404</div>
+    </div>
+
+    <p class="nf__code reveal reveal--1">HTTP · destination unreachable</p>
 
     <h1 class="nf__title reveal reveal--1">
       在协议与系统之间，<br /><em>这个地址没有回应。</em>
@@ -822,33 +869,96 @@ footer {
 
     <p class="nf__lead reveal reveal--2">
       你要找的页面不存在，或者已经被移动了。<br />
+      就像一次丢失的 ICMP 回显 —— <strong>请求已经发出，响应没有回来。</strong><br />
       检查一下地址拼写，或者从下面重新出发。
     </p>
 
-    <div class="nf__actions reveal reveal--3">
+    <div class="nf__actions reveal reveal--2">
       <a href="/" class="button button--ink">
         回到首页 <span aria-hidden="true">&rarr;</span>
       </a>
-      <a href="/#directions" class="text-link">技术方向</a>
-      <a href="/#roadmap" class="text-link">学习路线图</a>
+      <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="text-link">
+        在 GitHub 上找我
+      </a>
     </div>
 
-    <p class="nf__hint reveal reveal--3">
-      <span class="p">$</span>ping /sec/log<br />
-      <span class="ok">64 bytes from /sec/log: icmp_seq=1 ttl=64 time=0.42 ms</span>
-      &nbsp;— 首页是通的<br />
-      提示：按 <kbd>T</kbd> 可以切换亮 / 暗主题
-    </p>
+    <!-- 也许你在找这些：与首页 dir-card 同款纸张堆叠 -->
+    <div class="nf__routes reveal reveal--3">
+      <span class="kicker">Maybe You're Looking For</span>
+      <div class="nf__routes-grid">
+        <a class="nf-card" href="/#directions">
+          <span class="nf-card__arrow" aria-hidden="true">↗</span>
+          <div class="nf-card__top">
+            <span class="nf-card__no">I</span>
+            <span class="nf-card__kind">Directions</span>
+          </div>
+          <h3>技术方向</h3>
+          <p>TCP/IP 协议栈、系统安全、企业内网安全。</p>
+        </a>
+
+        <a class="nf-card" href="/#roadmap">
+          <span class="nf-card__arrow" aria-hidden="true">↗</span>
+          <div class="nf-card__top">
+            <span class="nf-card__no">II</span>
+            <span class="nf-card__kind">Roadmap</span>
+          </div>
+          <h3>学习路线图</h3>
+          <p>从网络基础到 AD 域安全，六个版本的演进路径。</p>
+        </a>
+
+        <a class="nf-card" href="/#methodology">
+          <span class="nf-card__arrow" aria-hidden="true">↗</span>
+          <div class="nf-card__top">
+            <span class="nf-card__no">III</span>
+            <span class="nf-card__kind">Method</span>
+          </div>
+          <h3>研究方法论</h3>
+          <p>协议原理 → 实现 → 抓包 → 攻击面 → 防御 → 对抗。</p>
+        </a>
+
+        <a class="nf-card" href="/#about">
+          <span class="nf-card__arrow" aria-hidden="true">↗</span>
+          <div class="nf-card__top">
+            <span class="nf-card__no">V</span>
+            <span class="nf-card__kind">About</span>
+          </div>
+          <h3>关于</h3>
+          <p>Cyph3r · 网络安全技术研究者，以及这个站点。</p>
+        </a>
+      </div>
+    </div>
+
+    <!-- 终端回显：一句 404，落到协议层 -->
+    <div class="nf__trace reveal reveal--3">
+      <p class="nf__trace-title">$ traceroute /this-page</p>
+      <ul class="nf__trace-list">
+        <li>
+          <span class="hop">1</span>
+          <span class="to">192.168.1.1</span>
+          <span class="tm">1.24 ms</span>
+        </li>
+        <li>
+          <span class="hop">2</span>
+          <span class="to">*</span>
+          <span class="tm">*&nbsp; *&nbsp; *</span>
+        </li>
+        <li>
+          <span class="hop">3</span>
+          <span class="to">*</span>
+          <span class="tm bad">*&nbsp; *&nbsp; *&nbsp; Request timed out.</span>
+        </li>
+      </ul>
+      <p class="nf__trace-foot">
+        <span class="p">$</span>ping /sec/log —
+        <span class="ok">64 bytes · icmp_seq=1 · ttl=64 · time=0.42 ms</span>
+      </p>
+    </div>
   </section>
 
 </main>
 
-<!-- ============================================================
-     FOOTER（与首页同一套）
-     ============================================================ -->
 <footer>
   <div class="wrap footer__inner">
-    <!-- 打磨：装饰性打字，隐藏给读屏 -->
     <p class="footer__cmd" aria-hidden="true">
       <span class="p">$</span>
       <span id="footer-typing" class="t"></span>
@@ -876,18 +986,47 @@ footer {
   </div>
 </footer>
 
-<!-- ============================================================
-     JAVASCRIPT
-     ============================================================ -->
 <script>
 (function () {
   'use strict';
 
-  // 打磨：提到最前，供波纹和其它动效共用
   var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ==========================================================
-     THEME TOGGLE —— 只有 light / dark（单个圆形按钮，点击即切换）
+     NAV SCROLL EFFECT
+     ========================================================== */
+  var nav = document.getElementById('nav');
+  function onScroll() {
+    if (!nav) return;
+    nav.classList.toggle('scrolled', window.scrollY > 60);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* 导航共享指示条：纯 hover 响应（404 页没有可 scroll-spy 的章节） */
+  (function initNavIndicator() {
+    var wrap = document.querySelector('.nav__links');
+    if (!wrap) return;
+    var ind = document.createElement('span');
+    ind.className = 'nav__indicator';
+    ind.setAttribute('aria-hidden', 'true');
+    wrap.appendChild(ind);
+    wrap.classList.add('has-indicator');
+
+    function move(link) {
+      if (!link) { ind.classList.remove('visible'); return; }
+      ind.style.transform = 'translateX(' + link.offsetLeft + 'px)';
+      ind.style.width = link.offsetWidth + 'px';
+      ind.classList.add('visible');
+    }
+    wrap.querySelectorAll('.nav__link').forEach(function (link) {
+      link.addEventListener('mouseenter', function () { move(link); });
+    });
+    wrap.addEventListener('mouseleave', function () { move(null); });
+  })();
+
+  /* ==========================================================
+     THEME
      ========================================================== */
   var themeToggle = document.querySelector('.theme-toggle');
   var root = document.documentElement;
@@ -902,67 +1041,90 @@ footer {
     }
     root.setAttribute('data-theme', theme);
     try { localStorage.setItem('sec-log-theme', theme); } catch (e) {}
-    // 打磨：同步移动端地址栏配色
     var meta = document.getElementById('themeColorMeta');
     if (meta) meta.setAttribute('content', theme === 'dark' ? '#0c0b09' : '#f5efe2');
     if (themeToggle) {
-      // 按钮不认识当前状态就废了 —— 用 aria-pressed + 动态标签说明"点下去会变成什么"
       var isDark = theme === 'dark';
       themeToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
       themeToggle.setAttribute('aria-label', isDark ? '切换到亮色主题' : '切换到暗色主题');
     }
   }
 
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function () {
-      var current = root.getAttribute('data-theme');
-      setTheme(THEMES[(THEMES.indexOf(current) + 1) % THEMES.length], true);
-    });
+  function switchTheme() {
+    var next = THEMES[(THEMES.indexOf(root.getAttribute('data-theme')) + 1) % THEMES.length];
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !document.startViewTransition) { setTheme(next, !reduce); return; }
+
+    var b = themeToggle ? themeToggle.getBoundingClientRect()
+                        : { left: window.innerWidth - 40, top: 30, width: 0, height: 0 };
+    var x = b.left + b.width / 2, y = b.top + b.height / 2;
+    var r = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+
+    root.classList.add('vt-theme');
+    var vt = document.startViewTransition(function () { setTheme(next, false); });
+    function done() { root.classList.remove('vt-theme'); }
+    vt.finished.then(done, done);
+    vt.ready.then(function () {
+      root.animate(
+        { clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)',
+                     'circle(' + r + 'px at ' + x + 'px ' + y + 'px)'] },
+        { duration: 760, easing: 'cubic-bezier(0.22, 0.8, 0.2, 1)',
+          pseudoElement: '::view-transition-new(root)' }
+      );
+    }, function () {});
   }
+
+  if (themeToggle) themeToggle.addEventListener('click', switchTheme);
 
   var initialTheme = 'light';
   try {
     var saved = localStorage.getItem('sec-log-theme');
-    if (saved === 'dark' || saved === 'light') {
-      initialTheme = saved;
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      // 打磨：没存过偏好时跟随系统
-      initialTheme = 'dark';
-    }
+    if (saved === 'dark' || saved === 'light') initialTheme = saved;
+    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) initialTheme = 'dark';
   } catch (e) {}
   setTheme(initialTheme, false);
 
-  /* 键盘快捷键 T：亮 / 暗循环
-     打磨：排除组合键（Cmd/Ctrl+T 会开新标签页，不该顺手把主题也切了），
-     并覆盖 SELECT / contenteditable 这些输入场景 */
   document.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     var el = e.target;
     var tag = (el.tagName || '').toUpperCase();
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (el.isContentEditable) return;
-    if (e.key === 't' || e.key === 'T') {
-      var current = root.getAttribute('data-theme');
-      var next = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length];
-      setTheme(next, true);
-    }
+    if (e.key === 't' || e.key === 'T') switchTheme();
   });
+
+  /* View Transitions 的 CSS 兜底（避免为此多写一个 <style> 块在 head 里） */
+  (function injectViewTransitionCSS() {
+    var s = document.createElement('style');
+    s.textContent =
+      'html.vt-theme::view-transition-old(root),' +
+      'html.vt-theme::view-transition-new(root){animation:none;mix-blend-mode:normal;}' +
+      'html.vt-theme::view-transition-old(root){z-index:1;}' +
+      'html.vt-theme::view-transition-new(root){z-index:2;}';
+    document.head.appendChild(s);
+  })();
 
   /* ==========================================================
      SCROLL REVEAL
      ========================================================== */
-  var revealObserver = new IntersectionObserver(function (entries) {
-    entries.forEach(function (entry) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        revealObserver.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+  if ('IntersectionObserver' in window) {
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
 
-  document.querySelectorAll('.reveal').forEach(function (el) {
-    revealObserver.observe(el);
-  });
+    document.querySelectorAll('.reveal').forEach(function (el) {
+      revealObserver.observe(el);
+    });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) {
+      el.classList.add('visible');
+    });
+  }
 
   /* ==========================================================
      FOOTER TYPING
@@ -998,18 +1160,18 @@ footer {
     var footer = document.querySelector('footer');
     if (!footer) return;
 
-    var footerObserver = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting && !isComplete) startTyping();
-      });
-    }, { threshold: 0.15 });
-
-    footerObserver.observe(footer);
+    if ('IntersectionObserver' in window) {
+      var footerObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting && !isComplete) startTyping();
+        });
+      }, { threshold: 0.15 });
+      footerObserver.observe(footer);
+    }
 
     if (footer.getBoundingClientRect().top < window.innerHeight) {
       setTimeout(startTyping, 700);
     }
-
     window.addEventListener('load', function () {
       if (!isComplete && footer.getBoundingClientRect().top < window.innerHeight) {
         setTimeout(startTyping, 800);
@@ -1018,9 +1180,7 @@ footer {
   })();
 
   /* ==========================================================
-     BUTTON RIPPLE（点击波纹）
-     打磨：与首页同款。首页的按钮有波纹 JS，404 的 .button 只有 CSS 没接逻辑 ——
-     加回来，让"回到首页"的点击手感一致
+     BUTTON RIPPLE
      ========================================================== */
   document.querySelectorAll('.button').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
@@ -1038,9 +1198,7 @@ footer {
   });
 
   /* ==========================================================
-     本地预览便利：用 file:// 打开时 "/" 会指向磁盘根目录，
-     这里把站内绝对路径改写成同级文件，方便离线点开看看
-     打磨：只在 file:// 下生效，线上部署时这段会直接跳过
+     本地预览便利：file:// 下把站内绝对路径改写成同级文件
      ========================================================== */
   if (location.protocol === 'file:') {
     document.querySelectorAll('a[href^="/"]').forEach(function (a) {
@@ -1054,6 +1212,9 @@ footer {
      ========================================================== */
   console.log('%c404', 'color:#c2410c;font-weight:700;font-size:14px;');
   console.log('⌨️  按 T 键切换主题（亮 / 暗）');
+  console.log('🧭 这个地址没有回应 —— 但首页是通的。');
+  console.log('📺 把鼠标压在那个 404 上，故障会更严重一点。');
+
 })();
 </script>
 </body>
