@@ -94,6 +94,10 @@
      正好是"中英同族"的搭配），无需额外加载字体 —— 标题已经在用它了。
      用于「导语」段落：.hero__lead / .method-intro */
   --font-serif-cn: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+
+  /* 动效曲线：全站统一，新增的细节动画都从这里取 */
+  --ease-out: cubic-bezier(0.22, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ============================================================
@@ -116,8 +120,13 @@
   --border-strong: rgba(26, 23, 18, 0.26);
   --card: #fffdf5;
   --nav-bg: rgba(245, 239, 226, 0.78);
+  --nav-bg-scrolled: rgba(245, 239, 226, 0.88);
   --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
   --glow: rgba(194, 65, 12, 0.12);
+  /* 亚克力 / 毛玻璃面板：比 --card 更透，露出一点背后的网格纹理 */
+  --glass-bg: rgba(255, 253, 245, 0.55);
+  --glass-border: rgba(26, 23, 18, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.6);
 }
 
 :root[data-theme="dark"] {
@@ -135,8 +144,12 @@
   --border-strong: rgba(240, 234, 214, 0.22);
   --card: #131109;
   --nav-bg: rgba(12, 11, 9, 0.72);
+  --nav-bg-scrolled: rgba(12, 11, 9, 0.86);
   --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
   --glow: rgba(245, 158, 11, 0.15);
+  --glass-bg: rgba(28, 26, 20, 0.45);
+  --glass-border: rgba(240, 234, 214, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.07);
 }
 
 /* ============================================================
@@ -255,14 +268,18 @@ body.theme-anim *::after {
 #nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50;
   background: var(--nav-bg);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  /* 亚克力：模糊之外叠加饱和度提升，透出的背景色会更鲜活一些，而不是灰蒙蒙一片 */
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--border);
+  /* 顶部一道极淡的高光，模拟玻璃面板的厚度感 */
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
   transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
 }
+/* 打磨：滚动后只是更"实"一点，不直接切回纯色 —— 玻璃感要贯穿全程 */
 #nav.scrolled {
-  background: var(--bg-elev);
-  box-shadow: var(--nav-shadow);
+  background: var(--nav-bg-scrolled);
+  box-shadow: var(--nav-shadow), inset 0 1px 0 var(--glass-highlight);
   border-bottom-color: var(--border-strong);
 }
 /* 打磨：不支持 backdrop-filter 的浏览器上，半透明导航会透出内容 —— 退回纯色 */
@@ -296,7 +313,21 @@ body.theme-anim *::after {
   vertical-align: text-bottom;
 }
 .nav__right { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-.nav__links { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.nav__links { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: relative; }
+/* 有共享指示条接管时，原来每个链接各自的下划线让位，避免两条线同时出现 */
+.nav__links.has-indicator .nav__link::after { display: none; }
+.nav__indicator {
+  position: absolute;
+  left: 0; bottom: -2px;
+  height: 1px;
+  width: 0;
+  background: var(--accent);
+  transform: translateX(0);
+  opacity: 0;
+  transition: transform 0.4s var(--ease-out), width 0.4s var(--ease-out), opacity 0.25s ease;
+  pointer-events: none;
+}
+.nav__indicator.visible { opacity: 1; }
 .nav__link {
   font-family: var(--font-mono);
   font-size: 11px; letter-spacing: 0.08em;
@@ -309,12 +340,19 @@ body.theme-anim *::after {
 }
 .nav__link::after {
   content: '';
-  position: absolute; left: 0; bottom: -2px;
-  width: 0; height: 1px; background: var(--accent);
-  transition: width 0.35s cubic-bezier(0.4,0,0.2,1);
+  position: absolute; left: 0; right: 0; bottom: -2px;
+  height: 1px; background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: right center;      /* 离开时向右收走 */
+  transition: transform 0.45s var(--ease-out);
 }
 .nav__link:hover { color: var(--fg); }
-.nav__link:hover::after { width: 100%; }
+.nav__link:hover::after,
+.nav__link[aria-current="location"]::after {
+  transform: scaleX(1);
+  transform-origin: left center;       /* 进入时从左划入 */
+}
+.nav__link[aria-current="location"] { color: var(--fg); }
 .nav__icon {
   display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--font-mono);
@@ -336,9 +374,10 @@ body.theme-anim *::after {
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
-  transition: border-color 0.3s ease;
+  transition: border-color 0.3s ease, transform 0.3s var(--ease-spring);
 }
 .theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:active { transform: scale(0.9); }
 .theme-toggle__icon {
   width: 14px; height: 14px;
   border-radius: 50%;
@@ -346,7 +385,7 @@ body.theme-anim *::after {
   color: var(--fg-dim);
   /* 左半实心、右半留白 —— 就是图二那个符号，纯 CSS 画，不用图标字体 */
   background: linear-gradient(90deg, currentColor 0 50%, transparent 50% 100%);
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+  transition: transform 0.8s var(--ease-spring), color 0.3s ease;
 }
 .theme-toggle:hover .theme-toggle__icon { color: var(--fg); }
 /* 切到暗色时把填充转到另一半 —— 半月相位翻转 */
@@ -359,7 +398,25 @@ body.theme-anim *::after {
   padding-top: clamp(120px, 16vh, 180px);
   padding-bottom: clamp(56px, 8vh, 96px);
   position: relative;
+  --px: 0px; --py: 0px;   /* 由 JS 写入：鼠标视差位移，关动效 / 触屏下恒为 0 */
 }
+/* 打磨：网点底纹——呼应"数据包/网络节点"的主题，同时给右侧 .hero__note
+   的毛玻璃一点可以透出来的纹理，不然亚克力糊的是一片纯色，看不出效果 */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -40px -5vw;
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 30px 30px;
+  opacity: 0.5;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 14%, #000 82%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 14%, #000 82%, transparent);
+  transform: translate3d(var(--px), var(--py), 0);
+  transition: transform 0.6s var(--ease-out);
+  pointer-events: none;
+  z-index: 0;
+}
+.hero__grid { position: relative; z-index: 1; }
 .hero__eyebrow {
   display: flex; align-items: center; gap: 8px;
   font-family: var(--font-mono);
@@ -593,10 +650,29 @@ body.theme-anim *::after {
   transform: translateY(-1px);
 }
 
-/* aside note */
+/* aside note —— 亚克力玻璃面板：模糊 + 饱和叠加，边缘一圈极淡描边当作"玻璃厚度" */
 .hero__note {
-  border-top: 1px solid var(--border-strong);
-  padding-top: 18px;
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 22px 22px 18px;
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 24px 60px -30px rgba(0, 0, 0, 0.35);
+  transition: transform 0.4s var(--ease-out), box-shadow 0.4s ease, background 0.4s ease;
+}
+.hero__note:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 30px 70px -28px rgba(0, 0, 0, 0.4);
+}
+/* 不支持 backdrop-filter 的浏览器：退回接近不透明的卡片色，别让正文透出来变花 */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .hero__note { background: var(--card); }
 }
 .hero__note-head {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -716,7 +792,9 @@ body.theme-anim *::after {
   gap: clamp(28px, 5vw, 72px);
   padding-top: clamp(60px, 8vh, 96px);
   padding-bottom: clamp(60px, 8vh, 96px);
-  border-top: 1px solid var(--border);
+  /* 线本身交给 ::before 画（见 MOTION 段），这里留 1px 透明占位，布局零位移 */
+  border-top: 1px solid transparent;
+  position: relative;
 }
 .rule + .home-section { border-top: none; }
 @media (max-width: 900px) {
@@ -760,21 +838,35 @@ body.theme-anim *::after {
   padding: 26px 24px 22px;
   text-decoration: none;
   color: inherit;
-  overflow: hidden;
+  /* 不能再 overflow:hidden —— 卡片下面还压着两张"纸"，会被自己的边界裁掉 */
   transform-style: preserve-3d;
   transition: border-color 0.4s ease, background 0.4s ease,
               box-shadow 0.4s ease, transform 0.2s ease;
   will-change: transform;
+  /* 堆叠效果：用两层无模糊的 box-shadow 复制出卡片自身的轮廓，依次错位，
+     看起来像压在下面的两张卡片 —— 不额外加 DOM 节点，纯 CSS。 */
+  box-shadow:
+    5px 6px 0 0 var(--bg-elev-2),
+    5px 6px 0 1px var(--border),
+    10px 12px 0 0 var(--bg),
+    10px 12px 0 1px var(--border);
 }
 .dir-card:hover {
   border-color: var(--accent);
   background: var(--bg-elev-2);
-  box-shadow: 0 22px 44px -22px rgba(var(--accent-rgb), 0.35);
+  /* hover 时"纸堆"略微散开，叠加原有的暖色光晕阴影 */
+  box-shadow:
+    7px 9px 0 0 var(--bg-elev-2),
+    7px 9px 0 1px var(--border),
+    14px 18px 0 0 var(--bg),
+    14px 18px 0 1px var(--border),
+    0 22px 44px -22px rgba(var(--accent-rgb), 0.35);
 }
 .dir-card::before {
   content: '';
   position: absolute;
   inset: 0;
+  border-radius: inherit;   /* 卡片不再 overflow:hidden，光晕层自己贴合圆角 */
   background: radial-gradient(
     360px circle at var(--mx, 50%) var(--my, 50%),
     rgba(var(--accent-rgb), 0.10),
@@ -844,21 +936,52 @@ body.theme-anim *::after {
 /* ============================================================
    ROADMAP
    ============================================================ */
-.roadmap { border-top: 1px solid var(--border); }
+.roadmap { padding-bottom: 4px; }
+/* 堆叠卡片：每张卡 position:sticky 且 top 依次递增，滚动时后一张会先"盖"住
+   前一张、停在它上方露出一道边——像版本记录一张张叠上去。只在桌面端启用，
+   小屏幕滚动距离太短，演不出堆叠感，见下方媒体查询直接退回普通纵向列表。 */
 .roadmap-item {
   display: grid;
   grid-template-columns: 148px minmax(0, 1fr);
   gap: 24px;
-  padding: 22px 0;
-  border-bottom: 1px solid var(--border);
-  position: relative;
-  transition: background 0.3s ease, padding-left 0.35s ease;
+  position: sticky;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;   /* 打磨：原先 12px 太圆，和全站 2–3px 的锐利边角撞风格，收窄 */
+  padding: 22px 24px;
+  margin-bottom: 14px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+  /* 和 .dir-card 同一套"纸张堆叠"写法：静止时就能看出卡片下压着另外两张，
+     不用等滚动触发吸顶重叠才有堆叠感——原先只在滚动态里叠，截图/未滚动时
+     看起来就是一叠普通圆角卡片，这里补上同款视觉签名，呼应起来也统一。 */
+  box-shadow:
+    4px 5px 0 0 var(--bg-elev-2),
+    4px 5px 0 1px var(--border),
+    8px 10px 0 0 var(--bg),
+    8px 10px 0 1px var(--border);
 }
-/* 打磨：最后一项不画线（原先是 inline style，移到 CSS 更稳，增删条目时不会漏） */
-.roadmap-item:last-child { border-bottom: none; }
-.roadmap-item:hover { padding-left: 12px; }
+.roadmap-item:last-child { margin-bottom: 0; }
+.roadmap-item:hover {
+  border-color: var(--border-strong);
+  box-shadow:
+    4px 5px 0 0 var(--bg-elev-2),
+    4px 5px 0 1px var(--border),
+    8px 10px 0 0 var(--bg),
+    8px 10px 0 1px var(--border),
+    0 26px 48px -28px rgba(0, 0, 0, 0.38);
+}
+.roadmap-item:nth-child(1) { top: 96px;  z-index: 1; }
+.roadmap-item:nth-child(2) { top: 112px; z-index: 2; }
+.roadmap-item:nth-child(3) { top: 128px; z-index: 3; }
+.roadmap-item:nth-child(4) { top: 144px; z-index: 4; }
+.roadmap-item:nth-child(5) { top: 160px; z-index: 5; }
+.roadmap-item:nth-child(6) { top: 176px; z-index: 6; }
 @media (max-width: 640px) {
-  .roadmap-item { grid-template-columns: 1fr; gap: 8px; }
+  .roadmap-item {
+    grid-template-columns: 1fr; gap: 8px;
+    position: static;   /* 小屏不堆叠，退回普通卡片列表 */
+    margin-bottom: 12px;
+  }
 }
 .roadmap-item__meta {
   display: flex; flex-direction: column; gap: 8px;
@@ -905,16 +1028,22 @@ body.theme-anim *::after {
   color: var(--muted);
 }
 .roadmap-item--active {
-  background: rgba(var(--accent-rgb), 0.035);
-  box-shadow: inset 2px 0 0 var(--accent);
-  padding-left: 20px;
-  margin-left: -20px;
-  padding-right: 16px;
+  border-color: var(--accent);
+  box-shadow:
+    4px 5px 0 0 var(--bg-elev-2),
+    4px 5px 0 1px var(--border),
+    8px 10px 0 0 var(--bg),
+    8px 10px 0 1px var(--border),
+    inset 3px 0 0 var(--accent);   /* 左侧一道细色条，够用了，不需要整张卡发光 */
 }
-.roadmap-item--active:hover { padding-left: 28px; }
-@media (max-width: 640px) {
-  .roadmap-item--active { padding-left: 14px; margin-left: -14px; }
-  .roadmap-item--active:hover { padding-left: 20px; }
+.roadmap-item--active:hover {
+  box-shadow:
+    4px 5px 0 0 var(--bg-elev-2),
+    4px 5px 0 1px var(--border),
+    8px 10px 0 0 var(--bg),
+    8px 10px 0 1px var(--border),
+    inset 3px 0 0 var(--accent),
+    0 26px 48px -26px rgba(var(--accent-rgb), 0.3);
 }
 .roadmap-item--active .roadmap-item__body h3 { color: var(--accent); }
 
@@ -940,7 +1069,8 @@ body.theme-anim *::after {
   gap: 18px;
   align-items: baseline;
   padding: 15px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid transparent;   /* 线由 ::after 画 */
+  position: relative;
   transition: padding-left 0.3s ease, color 0.3s ease;
 }
 /* 打磨：最后一项不画线（原先是 inline style） */
@@ -990,11 +1120,49 @@ body.theme-anim *::after {
   font-weight: 500;
   margin-right: 6px;
 }
+/* 示例卡逐行揭示：像终端把分析结果一行行打出来。
+   默认可见；只有 motion-ready 确认 IntersectionObserver 能用时才先藏起来，
+   脚本没跑/被拦截也不会把内容锁住——和 .home-section::before 那套线是同一个原则。 */
+.method-example ul li {
+  transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+}
+html.motion-ready .method-example:not(.revealed) ul li {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+.method-example.revealed ul li:nth-child(1) { transition-delay: 0.03s; }
+.method-example.revealed ul li:nth-child(2) { transition-delay: 0.09s; }
+.method-example.revealed ul li:nth-child(3) { transition-delay: 0.15s; }
+.method-example.revealed ul li:nth-child(4) { transition-delay: 0.21s; }
+.method-example.revealed ul li:nth-child(5) { transition-delay: 0.27s; }
+.method-example.revealed ul li:nth-child(6) { transition-delay: 0.33s; }
 
 /* ============================================================
    GOALS
    ============================================================ */
 .goal-list { border-top: 1px solid var(--border); }
+/* 里程碑连接线：借用「编号列」和「正文列」之间本来就空着的 20px 网格间距走线，
+   不占用任何文字空间，也不会被数字或段落压到。灰线常驻打底，暖色线靠 JS 写入
+   的 --fill（0–1，滚过这一段的进度）做 scaleY，纯视觉、没有 --fill 时就是 0，
+   退化成"只有灰线、没有强调"，不影响任何内容的可见性。 */
+.goal-list__thread { position: relative; }
+.goal-list__thread::before,
+.goal-list__thread::after {
+  content: '';
+  position: absolute;
+  left: 55px; top: 6px; bottom: 6px;
+  width: 1px;
+}
+.goal-list__thread::before { background: var(--border); }
+.goal-list__thread::after {
+  background: var(--accent);
+  transform: scaleY(var(--fill, 0));
+  transform-origin: top;
+}
+@media (max-width: 768px) {
+  .goal-list__thread::before,
+  .goal-list__thread::after { left: 43px; }
+}
 .goal-item {
   position: relative;
   display: grid;
@@ -1077,7 +1245,9 @@ body.theme-anim *::after {
   border-radius: 3px;
   padding: 20px 22px;
   margin-bottom: 26px;
-  transition: border-color 0.3s ease, box-shadow 0.4s ease, transform 0.4s ease;
+  /* opacity 是给下面"错落入场"用的——.about-prose__item 那条规则源码顺序在
+     这条之前，交给这条自己列全，避免被它的 transition 整条覆盖掉 */
+  transition: border-color 0.3s ease, box-shadow 0.4s ease, transform 0.4s ease, opacity 0.5s ease;
 }
 .repo-card:hover {
   border-color: var(--border-strong);
@@ -1256,6 +1426,21 @@ footer {
 .reveal--2 { transition-delay: 0.16s; }
 .reveal--3 { transition-delay: 0.24s; }
 
+/* About 卡片内部错落入场：署名行 → 两段正文 → 仓库卡 → 联系方式，
+   一棒接一棒出现，而不是整卡一次性淡入。挂在 #aboutCard 自己已有的
+   .visible 状态下，复用同一个 IntersectionObserver。 */
+.about-prose__item {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+}
+.about-prose.visible .about-prose__item { opacity: 1; transform: translateY(0); }
+.about-prose.visible .about-prose__item:nth-child(1) { transition-delay: 0.02s; }
+.about-prose.visible .about-prose__item:nth-child(2) { transition-delay: 0.08s; }
+.about-prose.visible .about-prose__item:nth-child(3) { transition-delay: 0.14s; }
+.about-prose.visible .about-prose__item:nth-child(4) { transition-delay: 0.22s; }
+.about-prose.visible .about-prose__item:nth-child(5) { transition-delay: 0.30s; }
+
 /* ============================================================
    BOOT —— 「标题即加载 · 原地打字」
    遮罩默认 display:none：没有 JS（或 head 里判定不演）时它根本不存在，
@@ -1363,6 +1548,41 @@ html.boot-bail main {
 }
 
 /* ============================================================
+   TO TOP —— 和导航栏同一套亚克力语言，滚够一屏才淡入
+   ============================================================ */
+.to-top {
+  position: fixed;
+  right: clamp(16px, 3vw, 32px);
+  bottom: clamp(16px, 3vh, 32px);
+  z-index: 40;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--fg-dim);
+  font-size: 15px;
+  cursor: pointer;
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 14px 32px -16px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(12px) scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s var(--ease-spring),
+              border-color 0.3s ease, color 0.3s ease;
+}
+.to-top.visible { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.to-top:hover { border-color: var(--accent); color: var(--accent); }
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .to-top { background: var(--card); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .to-top { transition: opacity 0.2s ease; transform: none !important; }
+  .nav__indicator { transition: opacity 0.2s ease; }
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 768px) {
@@ -1389,6 +1609,72 @@ html.boot-bail main {
   .method-example { padding: 16px 18px; }
 }
 
+/* ============================================================
+   MOTION —— 细节动效
+   原则：都是对"状态变化"的回应（切主题 / 滚动 / 进入视口），不做无意义的循环。
+   ============================================================ */
+
+/* 主题切换：从切换按钮处圆形扩散（View Transitions）。
+   不支持的浏览器自动退回原有的 0.6s 全局渐变（body.theme-anim）。 */
+html.vt-theme::view-transition-old(root),
+html.vt-theme::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html.vt-theme::view-transition-old(root) { z-index: 1; }
+html.vt-theme::view-transition-new(root) { z-index: 2; }
+
+/* 阅读进度：导航底边的一根细线 */
+.progress {
+  position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+/* 分隔线"被写下来"：进入视口时从左画到右
+   打磨：.roadmap-item 已经改成实体卡片（四边都有真边框），不再需要这道
+   单独画出来的底线，从共享选择器里摘掉；JS 里的 drawObserver 仍会给它
+   加 .drawn 类，只是不再有对应的样式消费它，无害。 */
+.home-section::before,
+.method-list li::after {
+  content: '';
+  position: absolute; left: 0; right: 0;
+  height: 1px;
+  background: var(--border);
+  transform-origin: left center;
+  pointer-events: none;
+  transition: transform 1s var(--ease-out);
+}
+.home-section::before { top: -1px; }
+.method-list li::after { bottom: -1px; }
+.rule + .home-section::before,
+.method-list li:last-child::after { display: none; }
+/* 只有脚本确认接手后才进入"未画"初态 —— 脚本没跑，线就一直是画好的 */
+html.motion-ready .home-section:not(.drawn)::before,
+html.motion-ready .method-list li:not(.drawn)::after { transform: scaleX(0); }
+
+/* 方向卡片：入场错开；入场结束后（.settled）换成跟手的快速过渡 */
+.dir-grid .dir-card:nth-child(2) { transition-delay: 0.08s; }
+.dir-grid .dir-card:nth-child(3) { transition-delay: 0.16s; }
+.dir-grid .dir-card.reveal.settled {
+  transition: border-color 0.4s ease, background 0.4s ease,
+              box-shadow 0.4s ease, transform 0.35s var(--ease-out);
+  transition-delay: 0s;
+}
+
+/* 跑马灯两端渐隐，不再被硬切 */
+.marquee-wrap {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+}
+
+/* 按钮箭头：悬停时轻推 */
+.button span[aria-hidden] { display: inline-block; transition: transform 0.4s var(--ease-out); }
+.button:hover span[aria-hidden] { transform: translateX(4px); }
+
+/* 计数时数字等宽，避免宽度抖动 */
+.stat__num { font-variant-numeric: tabular-nums; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -1399,10 +1685,14 @@ html.boot-bail main {
   body { animation: none !important; opacity: 1 !important; transform: none !important; }
   main { animation: none !important; opacity: 1 !important; transform: none !important; }
   .reveal, .goal-item { opacity: 1 !important; transform: none !important; }
+  .about-prose__item { opacity: 1 !important; transform: none !important; }
+  .method-example ul li { opacity: 1 !important; transform: none !important; }
   /* 关掉动效时线必须直接画满，否则分隔线会一直停在 scaleX(0) → 整列没有分隔线 */
   .goal-item::after { transform: none !important; }
+  .goal-list__thread::after { transform: scaleY(1) !important; }
   #footer-cursor { display: none !important; }
   .marquee { animation: none !important; }
+  .home-section::before, .method-list li::after { transform: none !important; }
 }
 </style>
 
@@ -1416,6 +1706,7 @@ html.boot-bail main {
 <noscript>
   <style>
     .reveal, .goal-item { opacity: 1 !important; transform: none !important; }
+    .about-prose__item { opacity: 1 !important; transform: none !important; }
     .stat__num[data-target] { color: transparent !important; }
     .stat__num[data-target="7"]::after   { content: "7";    color: var(--accent); }
     .stat__num[data-target="365"]::after { content: "365+"; color: var(--accent); }
@@ -1477,6 +1768,7 @@ html.boot-bail main {
       </button>
     </div>
   </div>
+  <div class="progress" id="progress" aria-hidden="true"></div>
 </nav>
 
 <main>
@@ -1774,6 +2066,9 @@ html.boot-bail main {
 
     <div class="home-section__body">
       <div class="goal-list">
+        <!-- 打磨：前四项包一层 .goal-list__thread，专门放左侧的里程碑连接线——
+             让它只贯穿这四个递进的目标，不延伸进独立的"最终目标"卡片 -->
+        <div class="goal-list__thread">
         <div class="goal-item">
           <div class="goal-item__no">01</div>
           <div>
@@ -1805,6 +2100,7 @@ html.boot-bail main {
             <p class="goal-item__desc">构建从网络边界到主机层面的纵深防御思维，理解攻击手法与检测响应。</p>
           </div>
         </div>
+        </div>
 
         <div class="goal-item goal-item--final">
           <div class="goal-item__no">→</div>
@@ -1831,18 +2127,18 @@ html.boot-bail main {
 
     <div class="home-section__body">
       <div class="about-prose reveal" id="aboutCard">
-        <p>
+        <p class="about-prose__item">
           <strong>Cyph3r</strong> · 企业安全方向技术研究者
         </p>
-        <p>
+        <p class="about-prose__item">
           专注于网络通信与系统安全的底层原理。相比只关注漏洞利用，我更关注通信过程、数据包流转、
           操作系统机制、身份认证模型，以及企业网络架构与攻防检测体系。
         </p>
-        <p>
+        <p class="about-prose__item">
           通过持续学习和实验，逐步构建从物理层到应用层、从内核到安全策略的完整知识图谱。
         </p>
 
-        <div class="repo-card">
+        <div class="repo-card about-prose__item">
           <div class="repo-card__head">
             <i class="fab fa-github"></i>
             <div>
@@ -1862,7 +2158,7 @@ html.boot-bail main {
           </div>
         </div>
 
-        <div class="contact-row">
+        <div class="contact-row about-prose__item">
           <a href="mailto:cyph3r1ab@outlook.com" class="contact-pill">
             <i class="fas fa-envelope"></i>
             cyph3r1ab@outlook.com
@@ -1919,12 +2215,20 @@ html.boot-bail main {
   </div>
 </footer>
 
+<!-- 打磨：回到顶部——用导航栏同款亚克力质感，滚够一屏才出现，不在首屏碍事 -->
+<button type="button" class="to-top" id="toTop" aria-label="回到顶部">
+  <i class="fas fa-arrow-up" aria-hidden="true"></i>
+</button>
+
 <!-- ============================================================
      JAVASCRIPT
      ============================================================ -->
 <script>
 (function () {
   'use strict';
+
+  // 脚本接手：之后 CSS 才会把"未画"的线置为初态（脚本挂了就保持可见）
+  if ('IntersectionObserver' in window) document.documentElement.classList.add('motion-ready');
 
   /* ==========================================================
      打磨：bootGate —— 加载遮罩上演期间，把"进入视口才播"的动画推迟到
@@ -2330,11 +2634,33 @@ html.boot-bail main {
     }
   }
 
+  /* 切换主题：新主题从按钮处圆形扩散开；不支持 / 关了动效则走原有渐变 */
+  function switchTheme() {
+    var next = THEMES[(THEMES.indexOf(root.getAttribute('data-theme')) + 1) % THEMES.length];
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !document.startViewTransition) { setTheme(next, !reduce); return; }
+
+    var b = themeToggle ? themeToggle.getBoundingClientRect()
+                        : { left: window.innerWidth - 40, top: 30, width: 0, height: 0 };
+    var x = b.left + b.width / 2, y = b.top + b.height / 2;
+    var r = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+
+    root.classList.add('vt-theme');
+    var vt = document.startViewTransition(function () { setTheme(next, false); });
+    function done() { root.classList.remove('vt-theme'); }
+    vt.finished.then(done, done);
+    vt.ready.then(function () {
+      root.animate(
+        { clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)',
+                     'circle(' + r + 'px at ' + x + 'px ' + y + 'px)'] },
+        { duration: 760, easing: 'cubic-bezier(0.22, 0.8, 0.2, 1)',
+          pseudoElement: '::view-transition-new(root)' }
+      );
+    }, function () {});
+  }
+
   if (themeToggle) {
-    themeToggle.addEventListener('click', function () {
-      var current = root.getAttribute('data-theme');
-      setTheme(THEMES[(THEMES.indexOf(current) + 1) % THEMES.length], true);
-    });
+    themeToggle.addEventListener('click', switchTheme);
   }
 
   var initialTheme = 'light';
@@ -2359,9 +2685,7 @@ html.boot-bail main {
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (el.isContentEditable) return;
     if (e.key === 't' || e.key === 'T') {
-      var current = root.getAttribute('data-theme');
-      var next = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length];
-      setTheme(next, true);
+      switchTheme();
     }
   });
 
@@ -2376,6 +2700,10 @@ html.boot-bail main {
         if (entry.isIntersecting) {
           entry.target.classList.add('visible');
           revealObserver.unobserve(entry.target);
+          // 方向卡片：入场放完后换成跟手的快速过渡（否则 3D 倾斜会拖着 0.9s 的尾巴）
+          if (entry.target.classList.contains('dir-card')) {
+            (function (el) { setTimeout(function () { el.classList.add('settled'); }, 1200); })(entry.target);
+          }
         }
       });
     }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
@@ -2438,10 +2766,132 @@ html.boot-bail main {
      NAV SCROLL EFFECT
      ========================================================== */
   var nav = document.getElementById('nav');
-  window.addEventListener('scroll', function () {
-    if (window.scrollY > 60) nav.classList.add('scrolled');
+
+  /* 导航滑动指示条：一根共享的线在链接间平滑移动/变宽，鼠标移开后
+     回到当前所在章节——比每个链接各自淡入淡出一截更有"跟手"的质感。
+     纯增强：指示条是 JS 创建、追加进去的，JS 没跑的话 .nav__link::after
+     那套原生每链接下划线原样生效，不会出现"连哪条都没有"的情况。 */
+  var navLinksWrap = document.querySelector('.nav__links');
+  var navIndicator = null;
+  function moveIndicator(link) {
+    if (!navIndicator) return;
+    if (!link) { navIndicator.classList.remove('visible'); return; }
+    navIndicator.style.transform = 'translateX(' + link.offsetLeft + 'px)';
+    navIndicator.style.width = link.offsetWidth + 'px';
+    navIndicator.classList.add('visible');
+  }
+  if (navLinksWrap) {
+    navIndicator = document.createElement('span');
+    navIndicator.className = 'nav__indicator';
+    navIndicator.setAttribute('aria-hidden', 'true');
+    navLinksWrap.appendChild(navIndicator);
+    navLinksWrap.classList.add('has-indicator');
+    navLinksWrap.querySelectorAll('.nav__link').forEach(function (link) {
+      link.addEventListener('mouseenter', function () { moveIndicator(link); });
+    });
+    navLinksWrap.addEventListener('mouseleave', function () {
+      moveIndicator(navLinksWrap.querySelector('.nav__link[aria-current="location"]'));
+    });
+    var navResizeTimer = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(navResizeTimer);
+      navResizeTimer = setTimeout(function () {
+        moveIndicator(navLinksWrap.querySelector('.nav__link[aria-current="location"]'));
+      }, 120);
+    }, { passive: true });
+  }
+
+  /* 导航高亮（scroll-spy）：当前所在章节的链接保持下划线，指示条跟着同步挪过去 */
+  var spyLinks = {};
+  document.querySelectorAll('.nav__link[href^="#"]').forEach(function (a) {
+    spyLinks[a.getAttribute('href').slice(1)] = a;
+  });
+  function clearSpy() {
+    Object.keys(spyLinks).forEach(function (k) { spyLinks[k].removeAttribute('aria-current'); });
+    moveIndicator(null);
+  }
+  var spyObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting || !spyLinks[entry.target.id]) return;
+      clearSpy();
+      spyLinks[entry.target.id].setAttribute('aria-current', 'location');
+      moveIndicator(spyLinks[entry.target.id]);
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  Object.keys(spyLinks).forEach(function (id) {
+    var sec = document.getElementById(id);
+    if (sec) spyObserver.observe(sec);
+  });
+
+  /* 滚动：导航底色 + 阅读进度线（rAF 合帧，一帧只算一次） */
+  var progressEl = document.getElementById('progress');
+  var scrollTick = false;
+  /* 目标里程碑连接线：进度不是"看过几屏"，是"这段 thread 卷走了多少" ——
+     thread 顶部到达视口 78% 高度时开始填，底部到达视口 32% 高度时填满。
+     缓存元素引用，避免每帧都查一次 DOM。 */
+  var goalThread = document.querySelector('.goal-list__thread');
+  function updateGoalThread() {
+    if (!goalThread) return;
+    var r = goalThread.getBoundingClientRect();
+    var vh = window.innerHeight;
+    var start = vh * 0.78, end = vh * 0.32;
+    var p = (start - r.top) / (r.height + (start - end));
+    goalThread.style.setProperty('--fill', Math.max(0, Math.min(1, p)).toFixed(3));
+  }
+
+  function onScroll() {
+    scrollTick = false;
+    var y = window.scrollY;
+    if (y > 60) nav.classList.add('scrolled');
     else nav.classList.remove('scrolled');
+    if (progressEl) {
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      progressEl.style.transform = 'scaleX(' + (max > 0 ? Math.min(y / max, 1) : 0).toFixed(4) + ')';
+    }
+    updateGoalThread();
+    if (toTopBtn) toTopBtn.classList.toggle('visible', y > window.innerHeight * 0.9);
+    if (y < 240) clearSpy();
+  }
+  window.addEventListener('scroll', function () {
+    if (!scrollTick) { scrollTick = true; requestAnimationFrame(onScroll); }
   }, { passive: true });
+  onScroll();
+
+  var toTopBtn = document.getElementById('toTop');
+  if (toTopBtn) {
+    toTopBtn.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+    });
+  }
+
+  /* 分隔线逐条画入：同一批进入视口的错开 90ms；等加载遮罩收场后再开始 */
+  bootGate(function () {
+    var drawObserver = new IntersectionObserver(function (entries) {
+      var batch = entries.filter(function (e) { return e.isIntersecting; });
+      batch.forEach(function (entry, i) {
+        var el = entry.target;
+        setTimeout(function () { el.classList.add('drawn'); }, Math.min(i, 5) * 90);
+        drawObserver.unobserve(el);
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+    document.querySelectorAll('.home-section, .roadmap-item, .method-list li').forEach(function (el) {
+      drawObserver.observe(el);
+    });
+  });
+
+  /* 示例卡逐行揭示：第一次进入视口时触发一次，看完就不会再演第二遍 */
+  bootGate(function () {
+    var exampleEl = document.querySelector('.method-example');
+    if (!exampleEl) return;
+    var exampleObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        exampleEl.classList.add('revealed');
+        exampleObserver.unobserve(exampleEl);
+      });
+    }, { threshold: 0.2 });
+    exampleObserver.observe(exampleEl);
+  });
 
   /* ==========================================================
      STAT COUNTERS
@@ -2581,6 +3031,69 @@ html.boot-bail main {
 
       card.addEventListener('mouseleave', function () { rect = null; });
     });
+
+    /* ----------------------------------------------------------
+       磁吸按钮 + HERO 网格视差：都属于"跟手但非必要"的装饰性位移，
+       关掉动效的用户两个都不该收到，统一用 prefersReducedMotion 挡在外面。
+       磁吸按钮：鼠标靠近主 CTA 时，按钮朝指针方向轻轻挪一点，
+       松手退场换成弹簧曲线弹回原位 —— 只给首屏唯一一个 CTA 用，
+       多了会腻，一个足够让人"感觉到"按钮在回应鼠标。
+       ---------------------------------------------------------- */
+    if (!prefersReducedMotion) {
+      document.querySelectorAll('.button--ink').forEach(function (btn) {
+        var rect = null;
+        var pull = 0.32;   // 跟手强度：越大位移越夸张，0.3 左右比较克制
+
+        btn.addEventListener('mouseenter', function () {
+          rect = btn.getBoundingClientRect();
+          btn.style.transition = 'transform 0.15s ease-out';
+        });
+        btn.addEventListener('mousemove', function (e) {
+          if (!rect) rect = btn.getBoundingClientRect();
+          var dx = (e.clientX - (rect.left + rect.width / 2)) * pull;
+          var dy = (e.clientY - (rect.top + rect.height / 2)) * pull;
+          btn.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
+        });
+        btn.addEventListener('mouseleave', function () {
+          btn.style.transition = 'transform 0.5s var(--ease-spring)';
+          btn.style.transform = '';
+          rect = null;
+        });
+      });
+
+      /* --------------------------------------------------------
+         HERO 网格视差：鼠标在首屏移动时，背景网点朝反方向轻微漂移，
+         制造"玻璃面板悬在网格上方"的纵深感。用 rAF + 缓动而不是直接
+         赋值，避免高频 mousemove 下位移是跳着走的。
+         -------------------------------------------------------- */
+      (function initHeroParallax() {
+        var heroEl = document.getElementById('hero');
+        if (!heroEl) return;
+        var raf = null, cx = 0, cy = 0, tx = 0, ty = 0;
+
+        function tick() {
+          cx += (tx - cx) * 0.08;
+          cy += (ty - cy) * 0.08;
+          heroEl.style.setProperty('--px', cx.toFixed(2) + 'px');
+          heroEl.style.setProperty('--py', cy.toFixed(2) + 'px');
+          if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05) {
+            raf = requestAnimationFrame(tick);
+          } else {
+            raf = null;
+          }
+        }
+        heroEl.addEventListener('mousemove', function (e) {
+          var r = heroEl.getBoundingClientRect();
+          tx = ((e.clientX - r.left) / r.width - 0.5) * -18;
+          ty = ((e.clientY - r.top) / r.height - 0.5) * -12;
+          if (!raf) raf = requestAnimationFrame(tick);
+        });
+        heroEl.addEventListener('mouseleave', function () {
+          tx = 0; ty = 0;
+          if (!raf) raf = requestAnimationFrame(tick);
+        });
+      })();
+    }
   }
 
   /* ==========================================================
