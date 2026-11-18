@@ -1,0 +1,4086 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>/sec/log — 网络安全学习笔记</title>
+<meta name="description" content="Cyph3r 的网络安全学习笔记：协议分析、内网渗透、Windows 域安全与红队技术。" />
+<!-- 分享卡片（没有图片 / 固定 URL，所以只放文字信息） -->
+<meta property="og:type" content="website" />
+<meta property="og:locale" content="zh_CN" />
+<meta property="og:site_name" content="/sec/log" />
+<meta property="og:title" content="/sec/log — 网络安全学习笔记" />
+<meta property="og:description" content="Cyph3r 的网络安全学习笔记：协议分析、内网渗透、Windows 域安全与红队技术。" />
+<meta name="twitter:card" content="summary" />
+<!-- 内联 favicon：斜杠 + 光标方块，呼应站点 logo；省掉一次 /favicon.ico 的 404 请求 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230c0b09'/%3E%3Cpath d='M11 24L16 8' stroke='%23f59e0b' stroke-width='3' stroke-linecap='round'/%3E%3Crect x='19' y='17' width='6' height='7' fill='%23f59e0b'/%3E%3C/svg%3E" />
+<!-- 打磨：移动端地址栏配色，跟随主题（head 脚本 + setTheme 里同步更新） -->
+<meta name="theme-color" content="#f5efe2" id="themeColorMeta" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700;900&family=Cinzel:wght@500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<script>
+  // 提前应用主题，防止闪烁
+  // 打磨：localStorage 里没有显式选择时，回落到系统深色偏好
+  (function () {
+    try {
+      var t = localStorage.getItem('sec-log-theme');
+      if (t !== 'dark' && t !== 'light') {
+        t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+      if (t === 'dark') {
+        var m = document.getElementById('themeColorMeta');
+        if (m) m.setAttribute('content', '#0c0b09');
+      }
+    } catch (e) {}
+  })();
+</script>
+<script>
+  // 加载动画是否上演 —— 必须在 <body> 解析前决定，否则会先闪一下真实内容
+  //
+  // 它只干一件实事：盖住首屏衬线字体的加载与替换。
+  // Google Fonts 是 display=swap，标题（Fraunces + Noto Serif SC）会先用回退字体
+  // 画出来、再"跳"一下 —— 那一下才是真正难看的。所以：
+  //   · 字体已缓存（同一标签页第二次进）→ 没有可盖的东西，不演
+  //   · 关掉了动效 → 不演
+  //   · 带锚点深链进入（目标不是首屏）→ 不演
+  (function () {
+    try {
+      var d = document.documentElement;
+      var skip = window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+                 sessionStorage.getItem('sec-log-boot') === '1' ||
+                 location.hash;
+      if (skip) return;
+      sessionStorage.setItem('sec-log-boot', '1');
+      d.classList.add('booting');
+      // 兜底闸：万一 <body> 末尾的主脚本没能跑起来（被扩展拦截 / 解析出错 / 请求截断），
+      // 就没人来撤遮罩了 —— 那样页面会被永久挡住、内容还会停在 opacity:0。
+      // 主脚本一旦接手会立刻 clearTimeout 掉它（见 initBoot）。
+      //
+      // 这里不靠 CSS 覆盖去赢优先级，而是直接把 .reveal 这个"透明来源"摘掉 ——
+      // 少一层依赖，就少一个能失败的地方。
+      window.__bootBail = setTimeout(function () {
+        d.classList.remove('booting');
+        d.classList.add('boot-bail');
+        // 主脚本没跑完 → 靠 .drawn 才显示的内容（分隔线 / 路线图 / 方法论…）永远等不到信号，
+        // 把"未入场"初态的总开关一并撤掉，保证内容可见
+        d.classList.remove('motion-ready');
+        var els = document.querySelectorAll('.reveal, .goal-item');
+        for (var i = 0; i < els.length; i++) {
+          els[i].classList.remove('reveal');
+          els[i].style.opacity = '1';
+          els[i].style.transform = 'none';
+        }
+        var m = document.querySelector('main');
+        if (m) { m.style.animation = 'none'; m.style.opacity = '1'; m.style.transform = 'none'; }
+        if (document.body) {
+          document.body.style.animation = 'none';
+          document.body.style.opacity = '1';
+        }
+        // 打磨：主脚本可能只跑了一半就出错 —— 已注册 bootGate 监听器的话，
+        // 得把信号补上，否则计数器 / 页脚打字会永远停在初始态
+        try { document.dispatchEvent(new CustomEvent('seclog:boot-done')); } catch (e) {}
+      }, 3600);
+    } catch (e) {}
+  })();
+</script>
+<style>
+/* ============================================================
+   FONT STACKS
+   ============================================================ */
+:root {
+  --font-sans: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont,
+               'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-display: 'Fraunces', 'Instrument Serif', 'Noto Serif SC',
+                  'Songti SC', 'SimSun', serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas,
+               /* 等宽栈里原本没有任何中文字体，中文只能掉到 monospace 兜底
+                  （Windows 上是宋体），和 JetBrains Mono 的英文完全不搭。
+                  这里按 macOS → Windows 顺序补上黑体；中文每个字恒为 1em 宽，
+                  放在等宽语境里依然对齐。 */
+               'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+               'Noto Sans SC', monospace;
+  /* 衬线正文栈：中英文都用衬线（Noto Serif SC 自带一套 Source Serif 拉丁字形，
+     正好是"中英同族"的搭配），无需额外加载字体 —— 标题已经在用它了。
+     用于「导语」段落：.hero__lead / .method-intro */
+  --font-serif-cn: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+
+  /* 动效曲线：全站统一，新增的细节动画都从这里取 */
+  --ease-out: cubic-bezier(0.22, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================
+   THEME TOKENS —— 默认亮色
+   ============================================================ */
+:root,
+:root[data-theme="light"] {
+  /* 打磨：声明原生配色方案，滚动条 / 表单控件 / 自动填充底色跟着走 */
+  color-scheme: light;
+  --bg: #f5efe2;
+  --bg-elev: #fbf6ea;
+  --bg-elev-2: #fffdf5;
+  --fg: #1a1712;
+  --fg-dim: #3d362b;
+  --muted: #7a7266;
+  --accent: #c2410c;
+  --accent-rgb: 194, 65, 12;
+  --accent-2: #0e7490;
+  --border: rgba(26, 23, 18, 0.12);
+  --border-strong: rgba(26, 23, 18, 0.26);
+  --card: #fffdf5;
+  --nav-bg: rgba(245, 239, 226, 0.78);
+  --nav-bg-scrolled: rgba(245, 239, 226, 0.88);
+  --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+  --glow: rgba(194, 65, 12, 0.12);
+  /* 亚克力 / 毛玻璃面板：比 --card 更透，露出一点背后的网格纹理 */
+  --glass-bg: rgba(255, 253, 245, 0.55);
+  --glass-border: rgba(26, 23, 18, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.6);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c0b09;
+  --bg-elev: #14120e;
+  --bg-elev-2: #1c1a14;
+  --fg: #f0ead6;
+  --fg-dim: #c9c1ad;
+  --muted: #8a8275;
+  --accent: #f59e0b;
+  --accent-rgb: 245, 158, 11;
+  --accent-2: #06b6d4;
+  --border: rgba(240, 234, 214, 0.10);
+  --border-strong: rgba(240, 234, 214, 0.22);
+  --card: #131109;
+  --nav-bg: rgba(12, 11, 9, 0.72);
+  --nav-bg-scrolled: rgba(12, 11, 9, 0.86);
+  --nav-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  --glow: rgba(245, 158, 11, 0.15);
+  --glass-bg: rgba(28, 26, 20, 0.45);
+  --glass-border: rgba(240, 234, 214, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.07);
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html {
+  scroll-behavior: smooth;
+  /* 打磨：带 hash 深链进入时，原生锚点跳转也得给固定导航让出空间，
+     否则目标会被导航压住（JS 那套偏移只管点击，管不到浏览器原生跳转） */
+  scroll-padding-top: 88px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  opacity: 0;
+  /* 只淡入，不做位移 —— body 上一旦有 transform（哪怕终值是 translateY(0)），
+     body 就会成为 position:fixed 后代的包含块，导航栏和顶部进度条会退化成
+     “相对 body 绝对定位”，往下滚动时跟着页面一起滚走。入场位移改到 main 上。 */
+  animation: pageFadeIn 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes pageFadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* 入场位移放在 main 上：main 内部没有任何 position:fixed 元素，安全 */
+main {
+  animation: contentRise 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes contentRise {
+  0%   { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: none; }
+}
+
+body.theme-anim,
+body.theme-anim *,
+body.theme-anim *::before,
+body.theme-anim *::after {
+  transition: background-color 0.6s cubic-bezier(0.4,0,0.2,1),
+              color 0.6s cubic-bezier(0.4,0,0.2,1),
+              border-color 0.6s cubic-bezier(0.4,0,0.2,1),
+              fill 0.6s cubic-bezier(0.4,0,0.2,1),
+              box-shadow 0.6s cubic-bezier(0.4,0,0.2,1) !important;
+}
+
+.serif { font-family: var(--font-display); }
+.mono  { font-family: var(--font-mono); }
+
+::selection { background: var(--accent); color: var(--bg); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 5px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ============================================================
+   打磨：跳转到主内容（键盘 / 读屏用户，避免每次 Tab 穿过整个导航）
+   ============================================================ */
+.skip-link {
+  position: fixed;
+  top: 8px; left: 8px;
+  z-index: 500;
+  padding: 10px 16px;
+  background: var(--fg);
+  color: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  border-radius: 2px;
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform 0.2s ease;
+}
+.skip-link:focus { transform: translateY(0); }
+
+/* ============================================================
+   LAYOUT PRIMITIVES
+   ============================================================ */
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-left: clamp(20px, 4vw, 40px);
+  padding-right: clamp(20px, 4vw, 40px);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* ============================================================
+   NAV
+   ============================================================ */
+#nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  background: var(--nav-bg);
+  /* 亚克力：模糊之外叠加饱和度提升，透出的背景色会更鲜活一些，而不是灰蒙蒙一片 */
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+  /* 顶部一道极淡的高光，模拟玻璃面板的厚度感 */
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
+}
+/* 打磨：滚动后只是更"实"一点，不直接切回纯色 —— 玻璃感要贯穿全程 */
+#nav.scrolled {
+  background: var(--nav-bg-scrolled);
+  box-shadow: var(--nav-shadow), inset 0 1px 0 var(--glass-highlight);
+  border-bottom-color: var(--border-strong);
+}
+/* 打磨：不支持 backdrop-filter 的浏览器上，半透明导航会透出内容 —— 退回纯色 */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  #nav { background: var(--bg); }
+  #nav.scrolled { background: var(--bg-elev); }
+}
+.nav__inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 14px clamp(20px, 4vw, 40px);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap;
+}
+.brand {
+  font-family: var(--font-mono);
+  font-size: 16px; font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  text-decoration: none;
+  display: inline-flex; align-items: center;
+  flex-shrink: 0;
+}
+.brand .slash { color: var(--muted); }
+.logo-cursor {
+  display: inline-block;
+  width: 0.5em; height: 1em;
+  background: var(--accent);
+  margin-left: 3px;
+  animation: blink 1.1s steps(1) infinite;
+  vertical-align: text-bottom;
+}
+.nav__right { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.nav__links { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: relative; }
+/* 有共享指示条接管时，原来每个链接各自的下划线让位，避免两条线同时出现 */
+.nav__links.has-indicator .nav__link::after { display: none; }
+.nav__indicator {
+  position: absolute;
+  left: 0; top: 0;            /* 实际位置由 JS 用 transform 写入（见 moveIndicator） */
+  height: 1px;
+  width: 0;
+  background: var(--accent);
+  transform: translateX(0);
+  opacity: 0;
+  transition: transform 0.4s var(--ease-out), width 0.4s var(--ease-out), opacity 0.25s ease;
+  pointer-events: none;
+}
+.nav__indicator.visible { opacity: 1; }
+.nav__link {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  position: relative;
+  padding-bottom: 2px;
+  transition: color 0.3s ease;
+}
+.nav__link::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: -2px;
+  height: 1px; background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: right center;      /* 离开时向右收走 */
+  transition: transform 0.45s var(--ease-out);
+}
+.nav__link:hover { color: var(--fg); }
+.nav__link:hover::after,
+.nav__link[aria-current="location"]::after {
+  transform: scaleX(1);
+  transform-origin: left center;       /* 进入时从左划入 */
+}
+.nav__link[aria-current="location"] { color: var(--fg); }
+.nav__icon {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.08em;
+  color: var(--muted); text-decoration: none;
+  transition: color 0.3s ease;
+}
+.nav__icon:hover { color: var(--accent); }
+.nav__icon i { font-size: 14px; }
+
+/* theme toggle */
+/* theme toggle —— 单个圆形按钮，内嵌「对半圆」图标（明暗对比的经典符号） */
+.theme-toggle {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.3s ease, transform 0.3s var(--ease-spring);
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:active { transform: scale(0.9); }
+.theme-toggle__icon {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  color: var(--fg-dim);
+  /* 左半实心、右半留白 —— 就是图二那个符号，纯 CSS 画，不用图标字体 */
+  background: linear-gradient(90deg, currentColor 0 50%, transparent 50% 100%);
+  transition: transform 0.8s var(--ease-spring), color 0.3s ease;
+}
+.theme-toggle:hover .theme-toggle__icon { color: var(--fg); }
+/* 切到暗色时把填充转到另一半 —— 半月相位翻转 */
+:root[data-theme="dark"] .theme-toggle__icon { transform: rotate(180deg); }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero {
+  padding-top: clamp(120px, 16vh, 180px);
+  padding-bottom: clamp(56px, 8vh, 96px);
+  position: relative;
+  --px: 0px; --py: 0px;   /* 由 JS 写入：鼠标视差位移，关动效 / 触屏下恒为 0 */
+}
+/* 打磨：网点底纹——呼应"数据包/网络节点"的主题，同时给右侧 .hero__note
+   的毛玻璃一点可以透出来的纹理，不然亚克力糊的是一片纯色，看不出效果 */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -40px -5vw;
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 30px 30px;
+  opacity: 0.5;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 14%, #000 82%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 14%, #000 82%, transparent);
+  transform: translate3d(var(--px), var(--py), 0);
+  transition: transform 0.6s var(--ease-out);
+  pointer-events: none;
+  z-index: 0;
+}
+.hero__grid { position: relative; z-index: 1; }
+.hero__eyebrow {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: clamp(32px, 5vh, 52px);
+  min-height: 1.6em;
+}
+.hero__prompt { color: var(--accent); font-weight: 700; }
+.cursor::after {
+  content: '▌';
+  color: var(--accent);
+  margin-left: 2px;
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 0.85fr);
+  gap: clamp(32px, 5vw, 76px);
+  align-items: end;
+}
+@media (max-width: 880px) {
+  .hero__grid { grid-template-columns: 1fr; align-items: start; gap: 44px; }
+}
+
+/* 注册光斑半径，让它成为一个可过渡的 <length>：
+   收尾时把半径收到 0，光就"收"回去而不是"啪"地断电。
+   不支持 @property 的浏览器会退化成瞬间开关，功能不受影响。 */
+@property --spot-r {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 120px;
+}
+
+/* ── 标题：手电筒聚光翻译 ────────────────────────────── */
+.hero__title {
+  margin-bottom: clamp(22px, 3.5vh, 34px);
+  /* 光斑圆心坐标（由 JS 写入） */
+  --spot-x: -9999px;
+  --spot-y: -9999px;
+  /* 光斑半径 —— 缩小，更聚焦 */
+  --spot-r: clamp(70px, 11vw, 130px);
+  /* 光斑边缘过渡带起点 —— 就是这一个数字控制"软硬"：
+     98% ≈ 硬边（≈2.6px 过渡），最干净；
+     往下调会更柔，但中文层也会跟着半透明，
+     而两层显示的是**不同文字**，于是中英会叠出重影。
+     实测 94% 起就能看出糊，90% 已经明显，所以默认留在 98%。 */
+  --spot-feather: 98%;
+  transition: --spot-r 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.title-stack {
+  position: relative;
+  display: block;
+  isolation: isolate;
+  /* 提升层级：右侧 aside 带 transform（.reveal）会形成层叠上下文，
+     标题若有一点溢出就会被它压住 —— 这里保证标题始终绘制在最上层。 */
+  z-index: 3;
+}
+
+/* 两层文字共用同一套排版度量 —— 行盒高度严格一致 */
+/* 标题排版度量 —— hero 标题与加载态的标题**必须共用这一份**。
+   只要有一项不一致（哪怕 line-height 差 0.02），FLIP 就得靠缩放去补，
+   而缩放过的文字是重采样的、和真标题不是同一份栅格 —— 交叉淡出时会出重影。
+   度量一致时缩放系数恒为 1，落位退化成纯平移，交换处逐像素相同。 */
+:root {
+  --title-fs: clamp(2.1rem, 5.8vw, 4.3rem);
+  --title-lh: 1.1;
+  --title-ls: -0.025em;
+}
+.title-layer {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--title-fs);
+  line-height: var(--title-lh);
+  letter-spacing: var(--title-ls);
+}
+.title-layer em {
+  font-style: italic;
+  color: var(--accent);
+  font-family: 'Instrument Serif', var(--font-display);
+  font-weight: 400;
+}
+
+/* 中文层：光斑覆盖处隐形。
+   两层必须用**同一个 --spot-feather**，否则过渡带里两层都半透明，
+   而它们显示的是不同文字 —— 会叠出重影。 */
+.title-layer--zh {
+  display: block;
+  -webkit-mask-image: radial-gradient(
+    circle var(--spot-r) at var(--spot-x) var(--spot-y),
+    transparent 0%,
+    transparent var(--spot-feather),
+    #000 100%
+  );
+  mask-image: radial-gradient(
+    circle var(--spot-r) at var(--spot-x) var(--spot-y),
+    transparent 0%,
+    transparent var(--spot-feather),
+    #000 100%
+  );
+}
+
+/* 英文译文层：字号更大，仅光斑范围内可见（与中文层严格互斥） */
+.title-layer--en {
+  position: absolute;
+  left: 0;
+  top: 0;
+  /* 宽度跟随文字真实宽度（不再写死 100%）：mask 会按 border-box 裁切内容，
+     固定 100% 时超出列宽的部分会被整段裁掉，表现为“这一行不显示 / 被遮挡”。
+     min-width:100% 保证文字较短时仍与中文层同宽，光斑坐标不受影响。 */
+  width: max-content;
+  min-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;   /* 与中文逐行对齐 */
+  /* 字号：中文的 0.9 倍（= 5.8vw × 0.9）。这只是上限，
+     JS 会按“每行实际可用的宽度”再自适应，确保永不裁切。 */
+  font-size: clamp(1.89rem, 5.22vw, 3.87rem);
+  /* 行盒高度兜底（JS 会改成中文行盒的实测 px 值） */
+  line-height: 1.222;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+
+  -webkit-mask-image: radial-gradient(
+    circle var(--spot-r) at var(--spot-x) var(--spot-y),
+    #000 0%,
+    #000 var(--spot-feather),
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    circle var(--spot-r) at var(--spot-x) var(--spot-y),
+    #000 0%,
+    #000 var(--spot-feather),
+    transparent 100%
+  );
+}
+
+/* 导语用衬线：紧贴在衬线大标题下面的第一段，跟标题同一个声音；
+   正文仍然用无衬线 —— 中文小字号下无衬线更耐读，
+   衬线/无衬线的对比本身就是这一页的层级感来源。 */
+.hero__lead {
+  font-family: var(--font-serif-cn);
+  font-size: clamp(0.98rem, 1.35vw, 1.12rem);
+  line-height: 1.85;
+  color: var(--fg-dim);
+  max-width: 620px;
+  margin-bottom: 0;
+}
+.hero__lead strong { color: var(--fg); font-weight: 600; }
+
+.hero__actions {
+  display: flex; align-items: center;
+  gap: 14px 26px;
+  flex-wrap: wrap;
+  margin-top: clamp(30px, 4vh, 44px);
+}
+
+/* buttons & links */
+.button {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 14px 24px;
+  border-radius: 2px;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  cursor: pointer;
+  border: 1px solid transparent;
+  user-select: none;
+}
+.button--ink {
+  background: var(--fg);
+  color: var(--bg);
+  --ripple-color: rgba(255, 255, 255, 0.4);
+}
+.button--ink:hover {
+  background: var(--accent);
+  color: var(--bg);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -12px rgba(var(--accent-rgb), 0.7);
+}
+.button--ghost {
+  border-color: var(--border-strong);
+  color: var(--fg-dim);
+  --ripple-color: rgba(var(--accent-rgb), 0.22);
+}
+.button--ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+.button .ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--ripple-color, rgba(255,255,255,0.35));
+  transform: scale(0);
+  animation: rippleAnim 0.65s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes rippleAnim {
+  to { transform: scale(4); opacity: 0; }
+}
+
+.text-link {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  text-decoration: none;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border-strong);
+  transition: color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+}
+.text-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* aside note —— 亚克力玻璃面板：模糊 + 饱和叠加，边缘一圈极淡描边当作"玻璃厚度" */
+.hero__note {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 22px 22px 18px;
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 24px 60px -30px rgba(0, 0, 0, 0.35);
+  transition: transform 0.4s var(--ease-out), box-shadow 0.4s ease, background 0.4s ease;
+}
+.hero__note:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 30px 70px -28px rgba(0, 0, 0, 0.4);
+}
+/* 不支持 backdrop-filter 的浏览器：退回接近不透明的卡片色，别让正文透出来变花 */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .hero__note { background: var(--card); }
+}
+.hero__note-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 18px;
+}
+.hero__note-no {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+.hero__note-list {
+  list-style: none;
+  margin-bottom: 22px;
+}
+.hero__note-list li {
+  font-size: 0.93rem;
+  color: var(--fg-dim);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  transition: padding-left 0.3s ease, color 0.3s ease;
+}
+.hero__note-list li:hover {
+  padding-left: 6px;
+  color: var(--fg);
+}
+.hero__note-list li:last-child { border-bottom: none; }
+
+/* ============================================================
+   STATS BAR
+   ============================================================ */
+.stats-bar {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.stats-bar__inner {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding-top: 28px;
+  padding-bottom: 28px;
+}
+.stat { display: flex; flex-direction: column; gap: 8px; }
+.stat__num {
+  font-family: var(--font-mono);
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--accent);
+}
+.stat__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ============================================================
+   MARQUEE
+   ============================================================ */
+.marquee-section {
+  overflow: hidden;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.marquee-wrap { overflow: hidden; white-space: nowrap; }
+.marquee {
+  display: inline-flex;
+  gap: 56px;
+  padding-right: 56px;
+  animation: scroll 44s linear infinite;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.marquee-wrap:hover .marquee { animation-play-state: paused; }
+@keyframes scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ============================================================
+   RULE DIVIDER
+   ============================================================ */
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-top: clamp(48px, 7vh, 80px);
+  padding-bottom: clamp(8px, 2vh, 16px);
+}
+.rule::before,
+.rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.rule span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   HOME SECTION
+   ============================================================ */
+.home-section {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 72px);
+  padding-top: clamp(60px, 8vh, 96px);
+  padding-bottom: clamp(60px, 8vh, 96px);
+  /* 线本身交给 ::before 画（见 MOTION 段），这里留 1px 透明占位，布局零位移 */
+  border-top: 1px solid transparent;
+  position: relative;
+}
+.rule + .home-section { border-top: none; }
+@media (max-width: 900px) {
+  .home-section { grid-template-columns: 1fr; gap: 28px; }
+}
+
+.section-index {
+  font-family: 'Instrument Serif', var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.home-section__aside h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  margin-top: 10px;
+}
+.home-section__aside .kicker { display: block; }
+
+/* ============================================================
+   DIRECTION CARDS
+   ============================================================ */
+.dir-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+.dir-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 26px 24px 22px;
+  text-decoration: none;
+  color: inherit;
+  /* 不能再 overflow:hidden —— 卡片下面还压着两张"纸"，会被自己的边界裁掉 */
+  transform-style: preserve-3d;
+  transition: border-color 0.4s ease, background 0.4s ease,
+              box-shadow 0.4s ease, transform 0.2s ease;
+  will-change: transform;
+  /* 堆叠效果：用两层无模糊的 box-shadow 复制出卡片自身的轮廓，依次错位，
+     看起来像压在下面的两张卡片 —— 不额外加 DOM 节点，纯 CSS。 */
+  box-shadow:
+    5px 6px 0 0 var(--bg-elev-2),
+    5px 6px 0 1px var(--border),
+    10px 12px 0 0 var(--bg),
+    10px 12px 0 1px var(--border);
+}
+.dir-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-elev-2);
+  /* hover 时"纸堆"略微散开，叠加原有的暖色光晕阴影 */
+  box-shadow:
+    7px 9px 0 0 var(--bg-elev-2),
+    7px 9px 0 1px var(--border),
+    14px 18px 0 0 var(--bg),
+    14px 18px 0 1px var(--border),
+    0 22px 44px -22px rgba(var(--accent-rgb), 0.35);
+}
+.dir-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;   /* 卡片不再 overflow:hidden，光晕层自己贴合圆角 */
+  background: radial-gradient(
+    360px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(var(--accent-rgb), 0.10),
+    transparent 45%
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.dir-card:hover::before { opacity: 1; }
+
+.dir-card__top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+.dir-card__no {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+.dir-card__kind {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 3px 8px;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 2px;
+  background: rgba(var(--accent-rgb), 0.06);
+}
+.dir-card h3 {
+  font-family: var(--font-display);
+  font-size: 1.22rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+  transition: color 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+.dir-card:hover h3 { color: var(--accent); }
+.dir-card p {
+  font-size: 0.9rem;
+  line-height: 1.72;
+  color: var(--muted);
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+.dir-card__arrow {
+  position: absolute;
+  right: 22px; bottom: 20px;
+  font-size: 15px;
+  color: var(--muted);
+  transition: transform 0.35s ease, color 0.35s ease;
+  z-index: 1;
+}
+.dir-card:hover .dir-card__arrow {
+  color: var(--accent);
+  transform: translate(3px, -3px);
+}
+
+/* ============================================================
+   ROADMAP
+   ============================================================ */
+.roadmap { padding-bottom: 4px; }
+/* 堆叠卡片：每张卡 position:sticky 且 top 依次递增，滚动时后一张会先"盖"住
+   前一张、停在它上方露出一道边——像版本记录一张张叠上去。只在桌面端启用，
+   小屏幕滚动距离太短，演不出堆叠感，见下方媒体查询直接退回普通纵向列表。 */
+.roadmap-item {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 24px;
+  position: sticky;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;   /* 打磨：原先 12px 太圆，和全站 2–3px 的锐利边角撞风格，收窄 */
+  padding: 22px 24px;
+  margin-bottom: 14px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+  /* 和 .dir-card 同一套"纸张堆叠"写法：静止时就能看出卡片下压着另外两张，
+     不用等滚动触发吸顶重叠才有堆叠感——原先只在滚动态里叠，截图/未滚动时
+     看起来就是一叠普通圆角卡片，这里补上同款视觉签名，呼应起来也统一。 */
+  box-shadow:
+    4px 5px 0 0 var(--bg-elev-2),
+    4px 5px 0 1px var(--border),
+    8px 10px 0 0 var(--bg),
+    8px 10px 0 1px var(--border);
+}
+.roadmap-item:last-child { margin-bottom: 0; }
+.roadmap-item:hover {
+  border-color: var(--border-strong);
+  box-shadow:
+    4px 5px 0 0 var(--bg-elev-2),
+    4px 5px 0 1px var(--border),
+    8px 10px 0 0 var(--bg),
+    8px 10px 0 1px var(--border),
+    0 26px 48px -28px rgba(0, 0, 0, 0.38);
+}
+.roadmap-item:nth-child(1) { top: 96px;  z-index: 1; }
+.roadmap-item:nth-child(2) { top: 112px; z-index: 2; }
+.roadmap-item:nth-child(3) { top: 128px; z-index: 3; }
+.roadmap-item:nth-child(4) { top: 144px; z-index: 4; }
+.roadmap-item:nth-child(5) { top: 160px; z-index: 5; }
+.roadmap-item:nth-child(6) { top: 176px; z-index: 6; }
+@media (max-width: 640px) {
+  .roadmap-item {
+    grid-template-columns: 1fr; gap: 8px;
+    position: static;   /* 小屏不堆叠，退回普通卡片列表 */
+    margin-bottom: 12px;
+  }
+}
+.roadmap-item__meta {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: 3px;
+}
+.roadmap-item__ver {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: 0.04em;
+}
+.roadmap-item__status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.roadmap-item__status::before {
+  content: '';
+  width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor;
+}
+.roadmap-item__status--done      { color: var(--fg-dim); }
+.roadmap-item__status--progress  { color: var(--accent); }
+.roadmap-item__status--progress::before { animation: pulse 2s ease-in-out infinite; }
+.roadmap-item__status--plan      { color: var(--muted); }
+.roadmap-item__status--plan::before { background: transparent; box-shadow: inset 0 0 0 1px currentColor; }
+@keyframes pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(1.35); }
+}
+.roadmap-item__body h3 {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 5px;
+  transition: color 0.3s ease;
+}
+.roadmap-item__body p {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.roadmap-item--active {
+  border-color: var(--accent);
+  box-shadow:
+    4px 5px 0 0 var(--bg-elev-2),
+    4px 5px 0 1px var(--border),
+    8px 10px 0 0 var(--bg),
+    8px 10px 0 1px var(--border),
+    inset 3px 0 0 var(--accent);   /* 左侧一道细色条，够用了，不需要整张卡发光 */
+}
+.roadmap-item--active:hover {
+  box-shadow:
+    4px 5px 0 0 var(--bg-elev-2),
+    4px 5px 0 1px var(--border),
+    8px 10px 0 0 var(--bg),
+    8px 10px 0 1px var(--border),
+    inset 3px 0 0 var(--accent),
+    0 26px 48px -26px rgba(var(--accent-rgb), 0.3);
+}
+.roadmap-item--active .roadmap-item__body h3 { color: var(--accent); }
+
+/* ============================================================
+   METHODOLOGY
+   ============================================================ */
+/* 导语（与 .hero__lead 同一层级：小节开头的那一段） */
+.method-intro {
+  font-family: var(--font-serif-cn);
+  font-size: 0.98rem;
+  line-height: 1.82;
+  color: var(--fg-dim);
+  margin-bottom: 26px;
+  max-width: 640px;
+}
+.method-list {
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+.method-list li {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 18px;
+  align-items: baseline;
+  padding: 15px 0;
+  border-bottom: 1px solid transparent;   /* 线由 ::after 画 */
+  position: relative;
+  transition: padding-left 0.3s ease, color 0.3s ease;
+}
+/* 打磨：最后一项不画线（原先是 inline style） */
+.method-list li:last-child { border-bottom: none; }
+.method-list li:hover { padding-left: 8px; }
+.method-list__no {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.method-list__text { font-size: 0.95rem; line-height: 1.7; color: var(--fg-dim); }
+.method-list__text strong { color: var(--fg); font-weight: 600; }
+
+.method-example {
+  margin-top: 30px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 2px;
+  padding: 20px 24px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.method-example:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--accent);
+  box-shadow: 0 12px 30px -20px rgba(var(--accent-rgb), 0.4);
+}
+.method-example__title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.method-example ul {
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 2;
+  color: var(--muted);
+}
+.method-example ul code {
+  color: var(--fg);
+  font-weight: 500;
+  margin-right: 6px;
+}
+/* 示例卡逐行揭示：像终端把分析结果一行行打出来。
+   默认可见；只有 motion-ready 确认 IntersectionObserver 能用时才先藏起来，
+   脚本没跑/被拦截也不会把内容锁住——和 .home-section::before 那套线是同一个原则。 */
+.method-example ul li {
+  transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+}
+html.motion-ready .method-example:not(.revealed) ul li {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+.method-example.revealed ul li:nth-child(1) { transition-delay: 0.03s; }
+.method-example.revealed ul li:nth-child(2) { transition-delay: 0.09s; }
+.method-example.revealed ul li:nth-child(3) { transition-delay: 0.15s; }
+.method-example.revealed ul li:nth-child(4) { transition-delay: 0.21s; }
+.method-example.revealed ul li:nth-child(5) { transition-delay: 0.27s; }
+.method-example.revealed ul li:nth-child(6) { transition-delay: 0.33s; }
+
+/* ============================================================
+   GOALS
+   ============================================================ */
+.goal-list { border-top: 1px solid var(--border); }
+/* 里程碑连接线：借用「编号列」和「正文列」之间本来就空着的 20px 网格间距走线，
+   不占用任何文字空间，也不会被数字或段落压到。灰线常驻打底，暖色线靠 JS 写入
+   的 --fill（0–1，滚过这一段的进度）做 scaleY，纯视觉、没有 --fill 时就是 0，
+   退化成"只有灰线、没有强调"，不影响任何内容的可见性。 */
+.goal-list__thread { position: relative; }
+.goal-list__thread::before,
+.goal-list__thread::after {
+  content: '';
+  position: absolute;
+  left: 55px; top: 6px; bottom: 6px;
+  width: 1px;
+}
+.goal-list__thread::before { background: var(--border); }
+.goal-list__thread::after {
+  background: var(--accent);
+  transform: scaleY(var(--fill, 0));
+  transform-origin: top;
+}
+@media (max-width: 768px) {
+  .goal-list__thread::before,
+  .goal-list__thread::after { left: 43px; }
+}
+.goal-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 20px;
+  padding: 22px 0;
+  /* 原来的分隔线改成透明的占位：真正的线交给 ::after 画进来，
+     保留 1px 边框是为了让盒子高度和以前完全一致（零布局位移） */
+  border-bottom: 1px solid transparent;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s cubic-bezier(0.4,0,0.2,1),
+              transform 0.7s cubic-bezier(0.4,0,0.2,1),
+              padding-left 0.35s ease;
+}
+/* 分隔线：随项目一起出现，但收尾稍慢，读起来像"正在被一条条写下来"。
+   和导航 hover 下划线用的是同一套语言（左起 scaleX）。 */
+.goal-item::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px; height: 1px;
+  background: var(--border);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.85s cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+.goal-item.visible { opacity: 1; transform: translateY(0); }
+.goal-item.visible::after { transform: scaleX(1); }
+.goal-item:hover { padding-left: 10px; }
+.goal-item__no {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  padding-top: 3px;
+}
+.goal-item__title {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+.goal-item__desc {
+  font-size: 0.9rem;
+  line-height: 1.72;
+  color: var(--muted);
+}
+.goal-item--final {
+  background: rgba(var(--accent-rgb), 0.04);
+  box-shadow: inset 2px 0 0 var(--accent);
+  padding-left: 18px;
+  margin-left: -18px;
+  padding-right: 16px;
+  border-bottom: none;
+}
+.goal-item--final::after { display: none; }   /* 收尾卡没有分隔线 */
+.goal-item--final:hover { padding-left: 26px; }
+.goal-item--final .goal-item__no { color: var(--accent); }
+.goal-item--final .goal-item__title { color: var(--accent); }
+.goal-item--final .goal-item__desc { color: var(--fg-dim); }
+
+/* ============================================================
+   ABOUT
+   ============================================================ */
+.about-prose p {
+  font-size: 0.98rem;
+  line-height: 1.82;
+  color: var(--fg-dim);
+  margin-bottom: 16px;
+  max-width: 660px;
+}
+.about-prose p strong { color: var(--fg); font-weight: 600; }
+.about-prose p:last-of-type { margin-bottom: 28px; }
+
+.repo-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 20px 22px;
+  margin-bottom: 26px;
+  /* opacity 是给下面"错落入场"用的——.about-prose__item 那条规则源码顺序在
+     这条之前，交给这条自己列全，避免被它的 transition 整条覆盖掉 */
+  transition: border-color 0.3s ease, box-shadow 0.4s ease, transform 0.4s ease, opacity 0.5s ease;
+}
+.repo-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 16px 36px -24px rgba(var(--accent-rgb), 0.4);
+  transform: translateY(-2px);
+}
+.repo-card__head {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap;
+}
+.repo-card__head i {
+  font-size: 20px;
+  color: var(--accent);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.repo-card:hover .repo-card__head i { transform: scale(1.12) rotate(-6deg); }
+.repo-card__name {
+  font-family: var(--font-mono);
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--fg);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+.repo-card__name:hover { color: var(--accent); }
+.repo-card__desc {
+  font-size: 0.83rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.repo-card__tags {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 14px;
+}
+.tag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+.repo-card:hover .tag {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+.contact-row {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.contact-pill {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 10px 18px 10px 15px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-dim);
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+.contact-pill i { color: var(--accent); font-size: 13px; transition: transform 0.3s ease; }
+.contact-pill:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+}
+.contact-pill:hover i { transform: scale(1.15) rotate(-6deg); }
+
+/* ============================================================
+   CLOSING NOTE
+   ============================================================ */
+.closing-note {
+  padding-top: clamp(60px, 9vh, 100px);
+  padding-bottom: clamp(60px, 9vh, 100px);
+  border-top: 1px solid var(--border);
+}
+.closing-note p {
+  font-family: 'Instrument Serif', var(--font-display);
+  font-style: italic;
+  font-size: clamp(1.3rem, 2.8vw, 2.1rem);
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+  margin-bottom: 14px;
+  max-width: 720px;
+}
+.closing-note span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev);
+  padding: 34px 0;
+}
+.footer__inner {
+  display: flex; flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.footer__cmd {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap;
+  gap: 0;
+  min-height: 1.7em;
+}
+.footer__cmd .p { color: var(--accent); margin-right: 8px; }
+.footer__cmd .t { color: var(--fg); }
+#footer-cursor {
+  display: inline-block;
+  width: 1ch; height: 1em;
+  background: var(--accent-2);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite;
+  transition: opacity 0.5s ease;
+  border-radius: 1px;
+}
+#footer-cursor.done { opacity: 0; animation: none; }
+
+.footer__copy {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.footer__copy strong { color: var(--fg); font-weight: 500; }
+.footer__links {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 22px;
+  margin-top: 2px;
+}
+.footer__links a {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-flex; align-items: center; gap: 7px;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+.footer__links a:hover { color: var(--accent); transform: translateY(-1px); }
+.footer__links i { font-size: 12px; }
+
+/* ============================================================
+   REVEAL
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.9s cubic-bezier(0.4,0,0.2,1),
+              transform 0.9s cubic-bezier(0.4,0,0.2,1);
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal--1 { transition-delay: 0.08s; }
+.reveal--2 { transition-delay: 0.16s; }
+.reveal--3 { transition-delay: 0.24s; }
+
+/* About 卡片内部错落入场：署名行 → 两段正文 → 仓库卡 → 联系方式，
+   一棒接一棒出现，而不是整卡一次性淡入。挂在 #aboutCard 自己已有的
+   .visible 状态下，复用同一个 IntersectionObserver。 */
+.about-prose__item {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+}
+.about-prose.visible .about-prose__item { opacity: 1; transform: translateY(0); }
+.about-prose.visible .about-prose__item:nth-child(1) { transition-delay: 0.02s; }
+.about-prose.visible .about-prose__item:nth-child(2) { transition-delay: 0.08s; }
+.about-prose.visible .about-prose__item:nth-child(3) { transition-delay: 0.14s; }
+.about-prose.visible .about-prose__item:nth-child(4) { transition-delay: 0.22s; }
+.about-prose.visible .about-prose__item:nth-child(5) { transition-delay: 0.30s; }
+
+/* ------------------------------------------------------------
+   打磨：「.reveal 吃掉自带 transition」一类问题的统一修复
+   .reveal / .about-prose__item 在源码里排在各组件之后，同优先级时它们的
+   `transition` 简写会整条覆盖组件自己的过渡 —— 表现为：
+     · 标题聚光的"收光"（--spot-r）从来没生效过，光斑是啪地断掉
+     · .hero__note / .repo-card 的 hover 阴影、边框不过渡，且被入场的
+       stagger delay（0.16s / 0.22s）永久拖着，hover 手感发黏
+   做法：标题把 --spot-r 过渡写进自己的简写里；其余的等入场放完（.settled）
+   再换回各自的 hover 过渡，并清掉 delay。
+   ------------------------------------------------------------ */
+.hero__title.reveal {
+  transition:
+    opacity 0.9s cubic-bezier(0.4,0,0.2,1) 0.08s,
+    transform 0.9s cubic-bezier(0.4,0,0.2,1) 0.08s,
+    --spot-r 0.2s cubic-bezier(0.4, 0, 0.2, 1) 0s;
+}
+.hero__note.reveal.settled {
+  transition: transform 0.4s var(--ease-out), box-shadow 0.4s ease, background 0.4s ease;
+  transition-delay: 0s;
+}
+.about-prose.visible.settled .about-prose__item:nth-child(n) { transition-delay: 0s; }
+.about-prose.settled .repo-card.about-prose__item {
+  transition: border-color 0.3s ease, box-shadow 0.4s ease, transform 0.4s var(--ease-out);
+}
+
+/* ============================================================
+   BOOT —— 「标题即加载 · 原地打字」
+   遮罩默认 display:none：没有 JS（或 head 里判定不演）时它根本不存在，
+   页面照常显示 —— 这条是刻意的，避免重蹈 .reveal 那种"脚本没跑就白屏"的坑。
+   ============================================================ */
+.boot { display: none; }
+
+html.booting .boot {
+  position: fixed; inset: 0; z-index: 400;
+  background: var(--bg);
+  display: flex;
+  align-items: center; justify-content: center;
+  padding: 24px;
+}
+/* 宽度收成文字宽，居中的就是"文字块"本身 */
+.boot__inner { position: relative; width: fit-content; }
+
+/* 命令行浮在标题上方（绝对定位 → 不参与 inner 的高度，标题才落在视觉中心）。
+   打字开始前它一直在这儿等字体，所以那段等待画面不是死的。 */
+.boot__cmd {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin: 0 0 30px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.boot__cmd .p { color: var(--accent); font-weight: 700; margin-right: 7px; }
+.boot__cursor {
+  display: inline-block;
+  width: 0.55em; height: 1.05em;
+  margin-left: 5px;
+  vertical-align: -0.2em;
+  border-radius: 1px;
+  background: var(--accent);
+  animation: blink 1s steps(1) infinite;
+}
+
+/* 加载态文字块：字号/行高/字距与 .title-layer 同源（--title-*），
+   所以 FLIP 只需要平移，缩放系数恒为 1 —— 不做缩放就没有重采样，也就不会出重影 */
+.boot__title {
+  position: relative;
+  width: fit-content;
+  margin: 0;
+  text-align: left;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--title-fs);
+  line-height: var(--title-lh);
+  letter-spacing: var(--title-ls);
+  color: var(--fg);
+  will-change: transform;
+}
+.boot__title em {
+  font-style: italic;
+  color: var(--accent);
+  font-family: 'Instrument Serif', var(--font-display);
+  font-weight: 400;
+}
+/* 撑尺寸的"隐形全文" —— 打字时块宽恒定，文字不会滑动 */
+.bt-sizer { visibility: hidden; }
+.bt-live { position: absolute; inset: 0; }
+
+/* 打字光标：尺度跟着标题字号走，颜色取 currentColor，
+   所以第一行是墨色、第二行（在 <em> 里）自动变成强调色 */
+.bt-caret {
+  display: inline-block;
+  width: 0.055em; height: 0.82em;
+  margin-left: 0.05em;
+  vertical-align: -0.02em;
+  border-radius: 1px;
+  background: currentColor;
+  animation: blink 1s steps(1) infinite;
+  transition: opacity 0.12s ease;
+}
+.bt-caret.done { opacity: 0; animation: none; }
+
+/* 演出期间接管入场：body 淡入 / main 上浮会被遮罩挡住，等于白播，
+   所以先按住，等遮罩淡出时由 .reveal 阶梯接管（见 JS 里的 startReveals） */
+html.booting body,
+html.booting main {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.booting .boot { display: none !important; }
+}
+
+/* 主脚本没能跑起来时的兜底（由 head 里的计时器加 .boot-bail）。
+   注意：真正把内容救回来的是 head 里那段 JS（直接摘掉 .reveal 类），而不是这里的
+   !important 覆盖 —— 实测中覆盖没能生效，所以别把这两条当成主力。
+   留着只是多一层保险，代价是一行 CSS。 */
+html.boot-bail .boot { display: none !important; }
+html.boot-bail body,
+html.boot-bail main {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* ============================================================
+   TO TOP —— 和导航栏同一套亚克力语言，滚够一屏才淡入
+   ============================================================ */
+.to-top {
+  position: fixed;
+  right: clamp(16px, 3vw, 32px);
+  bottom: clamp(16px, 3vh, 32px);
+  z-index: 40;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--fg-dim);
+  font-size: 15px;
+  cursor: pointer;
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 14px 32px -16px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(12px) scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s var(--ease-spring),
+              border-color 0.3s ease, color 0.3s ease;
+}
+.to-top.visible { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.to-top:hover { border-color: var(--accent); color: var(--accent); }
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .to-top { background: var(--card); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .to-top { transition: opacity 0.2s ease; transform: none !important; }
+  .nav__indicator { transition: opacity 0.2s ease; }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .nav__links { gap: 14px; }
+  .nav__link { font-size: 10px; }
+  .stats-bar__inner { grid-template-columns: 1fr; gap: 18px; }
+  .stat { flex-direction: row; align-items: baseline; gap: 12px; }
+  .stat__num { font-size: 1.4rem; }
+  .method-list li { grid-template-columns: 40px minmax(0,1fr); gap: 12px; }
+  .goal-item { grid-template-columns: 36px minmax(0,1fr); gap: 14px; }
+  .goal-item--final { padding-left: 12px; margin-left: -12px; }
+  .contact-row { flex-direction: column; align-items: flex-start; }
+  .contact-pill { font-size: 11px; padding: 9px 15px 9px 13px; }
+  .dir-card { transform: none !important; }
+}
+@media (max-width: 480px) {
+  .nav__right { gap: 12px; }
+  .nav__links { gap: 12px; }
+  .theme-toggle { width: 28px; height: 28px; }
+  .theme-toggle__icon { width: 13px; height: 13px; }
+  .hero__actions { gap: 12px 18px; }
+  .button { padding: 12px 18px; font-size: 10px; }
+  .repo-card { padding: 16px 16px; }
+  .method-example { padding: 16px 18px; }
+}
+
+/* ============================================================
+   MOTION —— 细节动效
+   原则：都是对"状态变化"的回应（切主题 / 滚动 / 进入视口），不做无意义的循环。
+   ============================================================ */
+
+/* 主题切换：从切换按钮处圆形扩散（View Transitions）。
+   不支持的浏览器自动退回原有的 0.6s 全局渐变（body.theme-anim）。 */
+html.vt-theme::view-transition-old(root),
+html.vt-theme::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html.vt-theme::view-transition-old(root) { z-index: 1; }
+html.vt-theme::view-transition-new(root) { z-index: 2; }
+
+/* 阅读进度：导航底边的一根细线 */
+.progress {
+  position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+/* 分隔线"被写下来"：进入视口时从左画到右
+   打磨：.roadmap-item 已经改成实体卡片（四边都有真边框），不再需要这道
+   单独画出来的底线，从共享选择器里摘掉；JS 里的 drawObserver 仍会给它
+   加 .drawn 类，只是不再有对应的样式消费它，无害。 */
+.home-section::before,
+.method-list li::after {
+  content: '';
+  position: absolute; left: 0; right: 0;
+  height: 1px;
+  background: var(--border);
+  transform-origin: left center;
+  pointer-events: none;
+  transition: transform 1s var(--ease-out);
+}
+.home-section::before { top: -1px; }
+.method-list li::after { bottom: -1px; }
+.rule + .home-section::before,
+.method-list li:last-child::after { display: none; }
+/* 只有脚本确认接手后才进入"未画"初态 —— 脚本没跑，线就一直是画好的 */
+html.motion-ready .home-section:not(.drawn)::before,
+html.motion-ready .method-list li:not(.drawn)::after { transform: scaleX(0); }
+
+/* 方向卡片：入场错开；入场结束后（.settled）换成跟手的快速过渡 */
+.dir-grid .dir-card:nth-child(2) { transition-delay: 0.08s; }
+.dir-grid .dir-card:nth-child(3) { transition-delay: 0.16s; }
+.dir-grid .dir-card.reveal.settled {
+  transition: border-color 0.4s ease, background 0.4s ease,
+              box-shadow 0.4s ease, transform 0.35s var(--ease-out);
+  transition-delay: 0s;
+}
+
+/* ============================================================
+   MOTION 2 —— 新增过渡
+   统一原则：
+   · 入场类一律用 keyframes + `backwards` 填充：动画结束后元素回到自己本来的样式，
+     不会残留 delay / transform，也就不会和 hover 过渡打架（上一轮修的就是这类问题）
+   · "未入场"的初态只在 html.motion-ready 下才生效 —— 脚本没跑就保持可见
+   ============================================================ */
+@keyframes itemIn  { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes riseIn  { from { opacity: 0; transform: translateY(22px); } }
+@keyframes popIn   { from { opacity: 0; transform: scale(0.4); } }
+@keyframes navDrop { from { opacity: 0; transform: translateY(-14px); } }
+@keyframes arriveLine {
+  0%   { transform: scaleX(0); opacity: 1; }
+  45%  { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+@keyframes vtOut { to   { opacity: 0; } }
+@keyframes vtIn  { from { opacity: 0; } }
+
+/* 跨页面过渡：首页 ⇄ 404 淡入淡出（Chromium 系支持，其余浏览器自动忽略）。
+   主题切换的圆形扩散用的是 html.vt-theme 前缀，优先级更高，不受影响。 */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+}
+::view-transition-old(root) { animation: 0.22s ease both vtOut; }
+::view-transition-new(root) { animation: 0.38s ease both vtIn; }
+
+/* 导航：页面就绪后轻轻落下。加载遮罩上演期间按住，免得在遮罩背后空放 */
+#nav { animation: navDrop 0.8s var(--ease-out) 0.05s backwards; }
+html.booting #nav { animation: none; opacity: 0; }
+
+/* 章节分隔线：从中间标签向两侧展开，标签随后淡入 */
+.rule::before,
+.rule::after { transition: transform 1.1s var(--ease-out); }
+.rule::before { transform-origin: right center; }
+.rule::after  { transform-origin: left center; }
+.rule span    { transition: opacity 0.6s ease 0.35s; }
+html.motion-ready .rule:not(.drawn)::before,
+html.motion-ready .rule:not(.drawn)::after { transform: scaleX(0); }
+html.motion-ready .rule:not(.drawn) span   { opacity: 0; }
+
+/* 章节左栏（罗马数字 → kicker → 标题）依次入场 */
+html.motion-ready .home-section:not(.drawn) .home-section__aside > * { opacity: 0; }
+.home-section.drawn .home-section__aside > * { animation: itemIn 0.7s var(--ease-out) backwards; }
+.home-section.drawn .home-section__aside > :nth-child(2) { animation-delay: 0.08s; }
+.home-section.drawn .home-section__aside > :nth-child(3) { animation-delay: 0.16s; }
+
+/* 锚点跳转到达：标题下方划过一道强调线（用伪元素，不干扰标题自己的入场动画） */
+.home-section__aside h2::after {
+  content: '';
+  display: block;
+  height: 1px;
+  margin-top: 14px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.home-section.arrive .home-section__aside h2::after {
+  animation: arriveLine 1.5s var(--ease-out) 0.4s both;
+}
+
+/* 路线图卡片：进入视口时从下方浮起（同一批错开 90ms，由 drawObserver 控制） */
+html.motion-ready .roadmap-item:not(.drawn) { opacity: 0; }
+.roadmap-item.drawn { animation: riseIn 0.7s var(--ease-out) backwards; }
+
+/* 方法论列表：分隔线画出后，编号与文字从左侧滑入 */
+html.motion-ready .method-list li:not(.drawn) > * { opacity: 0; }
+.method-list li.drawn > * { animation: itemIn 0.6s var(--ease-out) backwards; }
+.method-list li.drawn > :nth-child(2) { animation-delay: 0.07s; }
+
+/* 首屏右侧面板：三条关注方向在面板出现后依次浮现 */
+.hero__note.visible .hero__note-list li { animation: itemIn 0.6s var(--ease-out) backwards; }
+.hero__note.visible .hero__note-list li:nth-child(1) { animation-delay: 0.35s; }
+.hero__note.visible .hero__note-list li:nth-child(2) { animation-delay: 0.47s; }
+.hero__note.visible .hero__note-list li:nth-child(3) { animation-delay: 0.59s; }
+
+/* 学习目标编号：弹簧般"盖章"出现 */
+.goal-item.visible .goal-item__no { animation: popIn 0.6s var(--ease-spring) 0.12s backwards; }
+
+/* 结语：随滚动淡入（签名行稍晚一拍） */
+.closing-note span { display: inline-block; }
+
+/* 仓库标签：hover 时依次点亮，而不是同时变色 */
+.repo-card:hover .tag:nth-child(2) { transition-delay: 0.04s; }
+.repo-card:hover .tag:nth-child(3) { transition-delay: 0.08s; }
+.repo-card:hover .tag:nth-child(4) { transition-delay: 0.12s; }
+.repo-card:hover .tag:nth-child(5) { transition-delay: 0.16s; }
+.repo-card:hover .tag:nth-child(6) { transition-delay: 0.20s; }
+
+/* 文字链接：强调色下划线从左扫过，离开时向右收走（与导航链接同一套语言） */
+.text-link::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.45s var(--ease-out);
+}
+.text-link:hover::after { transform: scaleX(1); transform-origin: left center; }
+
+/* 键盘焦点：把 hover 才有的反馈同步给 :focus-visible
+   （全局 outline 只是一圈框，卡片的光晕 / 箭头 / 下划线这些"回应"原先键盘用户看不到） */
+.dir-card:focus-visible { border-color: var(--accent); background: var(--bg-elev-2); }
+.dir-card:focus-visible::before { opacity: 1; }
+.dir-card:focus-visible h3 { color: var(--accent); }
+.dir-card:focus-visible .dir-card__arrow { color: var(--accent); transform: translate(3px, -3px); }
+.text-link:focus-visible { color: var(--accent); border-color: var(--accent); }
+.text-link:focus-visible::after { transform: scaleX(1); transform-origin: left center; }
+.button--ink:focus-visible { background: var(--accent); }
+.button:focus-visible span[aria-hidden] { transform: translateX(4px); }
+.button--ghost:focus-visible { border-color: var(--accent); color: var(--accent); }
+.nav__link:focus-visible { color: var(--fg); }
+.nav__link:focus-visible::after { transform: scaleX(1); transform-origin: left center; }
+.nav__icon:focus-visible,
+.footer__links a:focus-visible { color: var(--accent); }
+.repo-card__name:focus-visible { color: var(--accent); }
+.contact-pill:focus-visible { border-color: var(--accent); color: var(--fg); }
+.contact-pill:focus-visible i { transform: scale(1.15) rotate(-6deg); }
+/* 程序化聚焦（锚点跳转）的容器不是交互元素，不画外框 */
+[tabindex="-1"]:focus { outline: none; }
+
+/* ============================================================
+   FINALE —— 页面最下面的「信息自由」大字标
+   字体取舍：汉字没有真正的"古罗马体"，所以做成一对：
+   · 汉字：Noto Serif SC 900（黑体字重的宋体，粗细对比强、衬线锐利，
+     最接近石刻铭文的庄重感），加宽字距
+   · 拉丁副题：Cinzel —— 罗马纪念碑铭文（Trajan 一脉）风格的全大写字体
+   汉字用 WebGL 像素揭示（与首页标题同一套实现）：滚入视口时像素块由粗变细，
+   之后鼠标划过处变清晰。没有 WebGL / 关了动效 / 脚本挂了，都是原样的文字。
+   ============================================================ */
+.finale {
+  --font-roman: 'Cinzel', 'Trajan Pro', 'Cormorant SC', 'Times New Roman', serif;
+  position: relative;
+  text-align: center;
+  overflow: hidden;
+  padding: clamp(72px, 14vh, 140px) 0 clamp(84px, 17vh, 170px);
+  border-top: 1px solid var(--border);
+}
+.finale__ornament {
+  display: flex; align-items: center; justify-content: center;
+  gap: 18px;
+  margin-bottom: clamp(26px, 5vh, 52px);
+  font-family: var(--font-roman);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.42em;
+  padding-left: 0.42em;               /* 抵消末尾字距，视觉居中 */
+  color: var(--muted);
+}
+.finale__line {
+  flex: 0 1 clamp(48px, 12vw, 150px);
+  height: 1px;
+  background: var(--border-strong);
+  transition: transform 1.2s var(--ease-out);
+}
+.finale__line:first-child { transform-origin: right center; }
+.finale__line:last-child  { transform-origin: left center; }
+.finale__reveal {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin: 0 auto clamp(24px, 4vh, 40px);
+  padding: 11px 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 11px/1.2 var(--font-roman);
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  transition: color .3s var(--ease-out), border-color .3s var(--ease-out), background .3s var(--ease-out), opacity .3s var(--ease-out);
+}
+.finale__reveal:hover { color: var(--fg); border-color: var(--accent); background: var(--bg-elev-2); }
+.finale__reveal:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.finale:not(.is-revealed) .finale__word { visibility: hidden; }
+.finale.is-revealed .finale__reveal { display: none; }
+.finale__word {
+  position: relative;
+  display: block;
+  margin: 0 auto;
+  font-family: 'Noto Serif SC', 'Songti SC', 'Source Han Serif SC', 'SimSun', serif;
+  font-weight: 900;
+  font-size: clamp(4rem, 16.5vw, 12.5rem);
+  line-height: 1.12;
+  letter-spacing: 0.12em;
+  padding-left: 0.12em;               /* 同上：抵消末尾字距 */
+  white-space: nowrap;
+  color: var(--fg);
+}
+.finale__word.px-pending,
+.finale__word.px-on { -webkit-text-fill-color: transparent; }
+.finale-px {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s cubic-bezier(0.33, 1, 0.68, 1);
+}
+.finale-px.ready { opacity: 1; }
+.finale__latin {
+  margin-top: clamp(20px, 4vh, 36px);
+  font-family: var(--font-roman);
+  font-size: clamp(0.8rem, 1.9vw, 1.25rem);
+  font-weight: 600;
+  letter-spacing: 0.34em;
+  padding-left: 0.34em;
+  text-transform: uppercase;
+  color: var(--accent);
+  transition: opacity 1.2s var(--ease-out) 0.7s, letter-spacing 1.8s var(--ease-out) 0.7s;
+}
+.finale__cap {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  padding-left: 0.26em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: opacity 0.9s ease 1.1s, transform 0.9s var(--ease-out) 1.1s;
+}
+/* 入场初态：只在脚本确认接手（motion-ready）后才先藏起来 */
+html.motion-ready .finale:not(.in) .finale__line { transform: scaleX(0); }
+html.motion-ready .finale:not(.in) .finale__ornament span:nth-child(2) { opacity: 0; }
+html.motion-ready .finale:not(.in) .finale__latin { opacity: 0; letter-spacing: 0.7em; }
+html.motion-ready .finale:not(.in) .finale__cap { opacity: 0; transform: translateY(10px); }
+.finale__ornament span:nth-child(2) { transition: opacity 0.8s ease 0.45s; }
+
+/* 跑马灯两端渐隐，不再被硬切 */
+.marquee-wrap {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+}
+
+/* 按钮箭头：悬停时轻推 */
+.button span[aria-hidden] { display: inline-block; transition: transform 0.4s var(--ease-out); }
+.button:hover span[aria-hidden] { transform: translateX(4px); }
+
+/* 计数时数字等宽，避免宽度抖动 */
+.stat__num { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  html { scroll-behavior: auto !important; }   /* 平滑滚动也要关掉 */
+  body { animation: none !important; opacity: 1 !important; transform: none !important; }
+  main { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .reveal, .goal-item { opacity: 1 !important; transform: none !important; }
+  .about-prose__item { opacity: 1 !important; transform: none !important; }
+  .method-example ul li { opacity: 1 !important; transform: none !important; }
+  /* MOTION 2 的"未入场"初态与入场动画：关了动效就直接是终态 */
+  html.motion-ready .home-section__aside > *,
+  html.motion-ready .method-list li > *,
+  html.motion-ready .roadmap-item,
+  html.motion-ready .rule span { opacity: 1 !important; }
+  .rule::before, .rule::after { transform: none !important; }
+  #nav, .hero__note-list li, .goal-item__no,
+  .home-section__aside > *, .method-list li > *, .roadmap-item { animation: none !important; }
+  .home-section__aside h2::after { display: none; }
+  .finale__line { transform: none !important; }
+  .finale__ornament span, .finale__cap { opacity: 1 !important; transform: none !important; }
+  .finale__latin { opacity: 1 !important; letter-spacing: 0.34em !important; }
+  /* 关掉动效时线必须直接画满，否则分隔线会一直停在 scaleX(0) → 整列没有分隔线 */
+  .goal-item::after { transform: none !important; }
+  .goal-list__thread::after { transform: scaleY(1) !important; }
+  #footer-cursor { display: none !important; }
+  .marquee { animation: none !important; }
+  .home-section::before, .method-list li::after { transform: none !important; }
+}
+</style>
+
+<!-- ============================================================
+     无 JS 兜底
+     .reveal / .goal-item 初始都是 opacity:0，靠脚本加 .visible 才显示；
+     统计数字同理，初值是 "0"，靠脚本计数。
+     脚本一旦没跑（被禁用 / 被扩展拦截 / 报错），整页内容会是一片空白 ——
+     这里让它们直接显示终态。
+     ============================================================ -->
+<noscript>
+  <style>
+    .reveal, .goal-item { opacity: 1 !important; transform: none !important; }
+    .about-prose__item { opacity: 1 !important; transform: none !important; }
+    .stat__num[data-target] { color: transparent !important; }
+    .stat__num[data-target="7"]::after   { content: "7";    color: var(--accent); }
+    .stat__num[data-target="365"]::after { content: "365+"; color: var(--accent); }
+    #footer-cursor { display: none !important; }
+  </style>
+</noscript>
+</head>
+<body>
+
+<!-- 打磨：键盘 / 读屏用户跳过导航 -->
+<a class="skip-link" href="#hero">跳到主内容</a>
+
+<!-- ============================================================
+     BOOT —— 加载态就是主标题本身，之后 FLIP 到它在 hero 里的最终位置。
+     aria-hidden：它只是真实标题的副本，读屏不必念两遍。
+     ============================================================ -->
+<div class="boot" id="boot" aria-hidden="true">
+  <!-- inner 的尺寸由标题决定（命令行绝对定位挂在它上面），所以居中的是**标题**，
+       命令行只是浮在上方 —— 这样标题落在视觉中心，不会被命令行顶偏。 -->
+  <div class="boot__inner">
+    <p class="boot__cmd" id="bootCmd"><span class="p">$</span>cat /sec/log<i class="boot__cursor" id="bootCursor"></i></p>
+    <!-- sizer 里放完整文字但 visibility:hidden —— 它撑住整块尺寸，这样下面那行
+         逐字打出来时块宽不会变、文字不会左右滑动。bt-live 绝对定位盖在它上面。 -->
+    <p class="boot__title" id="bootTitle">
+      <span class="bt-sizer">在协议与系统之间，<br /><em>构建可靠的理解。</em></span>
+      <span class="bt-live">
+        <span id="btLine1"></span><i class="bt-caret" id="btCaret1"></i><br />
+        <em id="btLine2"></em><i class="bt-caret" id="btCaret2"></i>
+      </span>
+    </p>
+  </div>
+</div>
+
+<!-- ============================================================
+     NAV
+     ============================================================ -->
+<nav id="nav">
+  <div class="nav__inner">
+    <a href="#hero" class="brand">
+      <span class="slash">/</span>sec<span class="slash">/</span>log
+      <span class="logo-cursor"></span>
+    </a>
+
+    <div class="nav__right">
+      <div class="nav__links">
+        <a href="#directions" class="nav__link">技术方向</a>
+        <a href="#roadmap" class="nav__link">路线图</a>
+        <a href="#methodology" class="nav__link">方法论</a>
+        <a href="#goals" class="nav__link">目标</a>
+        <a href="#about" class="nav__link">关于</a>
+        <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="nav__icon">
+          <i class="fab fa-github"></i> GitHub
+        </a>
+      </div>
+
+      <button type="button" class="theme-toggle" aria-pressed="false"
+              aria-label="切换到暗色主题" title="切换主题（快捷键 T）">
+        <span class="theme-toggle__icon" aria-hidden="true"></span>
+      </button>
+    </div>
+  </div>
+  <div class="progress" id="progress" aria-hidden="true"></div>
+</nav>
+
+<main>
+
+  <!-- ============================================================
+       HERO
+       ============================================================ -->
+  <section id="hero" class="hero wrap">
+    <!-- 打磨：装饰性循环打字，隐藏给读屏，免得每 2.2s 播报一次 -->
+    <div class="hero__eyebrow reveal" aria-hidden="true">
+      <span class="hero__prompt">$</span>
+      <span id="typewriter" class="cursor"></span>
+    </div>
+
+    <div class="hero__grid">
+      <div class="hero__copy">
+
+        <!-- 手电筒聚光翻译：鼠标扫过之处，中文自动翻译为英文 -->
+        <h1 class="hero__title reveal reveal--1" id="heroTitle">
+          <span class="title-stack">
+            <span class="title-layer title-layer--zh">
+              在协议与系统之间，<br /><em>构建可靠的理解。</em>
+            </span>
+            <span class="title-layer title-layer--en" aria-hidden="true">
+              <span>Between protocols and systems,</span>
+              <span><em>building reliable understanding.</em></span>
+            </span>
+          </span>
+        </h1>
+
+        <p class="hero__lead reveal reveal--2">
+          我是 <strong>Cyph3r</strong>，企业网络安全与内网渗透技术研究者。
+          这里记录我从 TCP/IP 协议栈到 Windows 域安全的完整学习路径——
+          不止于漏洞利用，更关注通信过程、系统机制与攻防对抗的底层逻辑。
+        </p>
+
+        <div class="hero__actions reveal reveal--3">
+          <a href="#directions" class="button button--ink">
+            了解技术方向 <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </div>
+
+      <aside class="hero__note reveal reveal--2" aria-label="当前关注方向">
+        <div class="hero__note-head">
+          <span class="hero__note-no">01</span>
+          <p class="kicker">Currently Exploring</p>
+        </div>
+        <ul class="hero__note-list">
+          <li>TCP/IP 协议栈与数据包分析</li>
+          <li>内网渗透 · 横向移动</li>
+          <li>Windows 认证 · Kerberos · AD</li>
+        </ul>
+        <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="text-link">
+          GitHub / @Cyph3rLab
+        </a>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       STATS BAR
+       ============================================================ -->
+  <div class="stats-bar">
+    <div class="wrap stats-bar__inner">
+      <div class="stat reveal">
+        <span class="stat__num">∞</span>
+        <span class="stat__label">数据包分析</span>
+      </div>
+      <div class="stat reveal reveal--1">
+        <span class="stat__num" data-target="7">0</span>
+        <span class="stat__label">协议层深度</span>
+      </div>
+      <div class="stat reveal reveal--2">
+        <span class="stat__num" data-target="365" data-suffix="+">0</span>
+        <span class="stat__label">持续学习 / 天</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       TECH MARQUEE
+       ============================================================ -->
+  <div class="marquee-section">
+    <div class="marquee-wrap">
+      <div class="marquee">
+        <span>TCP/IP · 网络安全 · Linux 系统 · Windows 安全 · 网络工程</span>
+        <span>系统安全 · 协议分析 · 内网安全 · NTLM · Kerberos</span>
+        <span>Active Directory · 数据包分析 · 企业网络 · 安全架构</span>
+        <span>渗透测试 · 防御体系 · 身份认证 · 访问控制</span>
+        <span>TCP/IP · 网络安全 · Linux 系统 · Windows 安全 · 网络工程</span>
+        <span>系统安全 · 协议分析 · 内网安全 · NTLM · Kerberos</span>
+        <span>Active Directory · 数据包分析 · 企业网络 · 安全架构</span>
+        <span>渗透测试 · 防御体系 · 身份认证 · 访问控制</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       RULE
+       ============================================================ -->
+  <div class="rule wrap" aria-hidden="true"><span>Selected Notes</span></div>
+
+  <!-- ============================================================
+       I — DIRECTIONS
+       ============================================================ -->
+  <section id="directions" class="home-section wrap">
+    <div class="home-section__aside">
+      <div class="section-index">I</div>
+      <p class="kicker">Directions</p>
+      <h2>我的技术方向</h2>
+    </div>
+
+    <div class="home-section__body">
+      <div class="dir-grid">
+        <a class="dir-card reveal" href="#roadmap">
+          <span class="dir-card__arrow" aria-hidden="true">↗</span>
+          <div class="dir-card__top">
+            <span class="dir-card__no">01</span>
+            <span class="dir-card__kind">网络基础</span>
+          </div>
+          <h3>网络工程</h3>
+          <p>TCP/IP 协议栈、Ethernet、ARP、VLAN、STP、路由交换基础，构建企业网络通信的底层认知。</p>
+        </a>
+
+        <a class="dir-card reveal" href="#roadmap">
+          <span class="dir-card__arrow" aria-hidden="true">↗</span>
+          <div class="dir-card__top">
+            <span class="dir-card__no">02</span>
+            <span class="dir-card__kind">操作系统</span>
+          </div>
+          <h3>系统安全</h3>
+          <p>Linux 内核原理、Windows 安全机制、权限模型、认证体系（NTLM / Kerberos）、Active Directory 域安全。</p>
+        </a>
+
+        <a class="dir-card reveal" href="#roadmap">
+          <span class="dir-card__arrow" aria-hidden="true">↗</span>
+          <div class="dir-card__top">
+            <span class="dir-card__no">03</span>
+            <span class="dir-card__kind">内网防御</span>
+          </div>
+          <h3>企业内网安全</h3>
+          <p>内网拓扑、身份认证架构、横向移动防御、日志审计、安全策略落地与攻防检测体系。</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       II — ROADMAP
+       ============================================================ -->
+  <section id="roadmap" class="home-section wrap">
+    <div class="home-section__aside">
+      <div class="section-index">II</div>
+      <p class="kicker">Roadmap</p>
+      <h2>学习路线图</h2>
+    </div>
+
+    <div class="home-section__body">
+      <div class="roadmap">
+        <article class="roadmap-item">
+          <div class="roadmap-item__meta">
+            <span class="roadmap-item__ver">v1.0</span>
+            <span class="roadmap-item__status roadmap-item__status--done">已完成</span>
+          </div>
+          <div class="roadmap-item__body">
+            <h3>网络基础与协议分析</h3>
+            <p>TCP/IP 协议栈、Ethernet、ARP、ICMP、VLAN、STP、路由交换基础</p>
+          </div>
+        </article>
+
+        <article class="roadmap-item">
+          <div class="roadmap-item__meta">
+            <span class="roadmap-item__ver">v1.5</span>
+            <span class="roadmap-item__status roadmap-item__status--done">已完成</span>
+          </div>
+          <div class="roadmap-item__body">
+            <h3>网络协议攻击实战</h3>
+            <p>ARP 欺骗、DNS 欺骗、TCP 劫持、网络层攻击与防御</p>
+          </div>
+        </article>
+
+        <article class="roadmap-item roadmap-item--active">
+          <div class="roadmap-item__meta">
+            <span class="roadmap-item__ver">v2.0</span>
+            <span class="roadmap-item__status roadmap-item__status--progress">进行中</span>
+          </div>
+          <div class="roadmap-item__body">
+            <h3>内网渗透实战</h3>
+            <p>内网信息收集、横向移动、权限维持、域渗透基础</p>
+          </div>
+        </article>
+
+        <article class="roadmap-item">
+          <div class="roadmap-item__meta">
+            <span class="roadmap-item__ver">v3.0</span>
+            <span class="roadmap-item__status roadmap-item__status--plan">规划中</span>
+          </div>
+          <div class="roadmap-item__body">
+            <h3>操作系统安全</h3>
+            <p>Linux / Windows 内核机制、安全配置、漏洞分析与缓解</p>
+          </div>
+        </article>
+
+        <article class="roadmap-item">
+          <div class="roadmap-item__meta">
+            <span class="roadmap-item__ver">v4.0</span>
+            <span class="roadmap-item__status roadmap-item__status--plan">规划中</span>
+          </div>
+          <div class="roadmap-item__body">
+            <h3>Active Directory 域安全</h3>
+            <p>AD 架构、组策略、Kerberos 攻击、域信任、AD 安全加固</p>
+          </div>
+        </article>
+
+        <article class="roadmap-item">
+          <div class="roadmap-item__meta">
+            <span class="roadmap-item__ver">v5.0</span>
+            <span class="roadmap-item__status roadmap-item__status--plan">规划中</span>
+          </div>
+          <div class="roadmap-item__body">
+            <h3>企业身份安全</h3>
+            <p>现代身份认证、零信任模型、IAM、PAM、云安全集成</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       III — METHODOLOGY
+       ============================================================ -->
+  <section id="methodology" class="home-section wrap">
+    <div class="home-section__aside">
+      <div class="section-index">III</div>
+      <p class="kicker">Method</p>
+      <h2>研究方法论</h2>
+    </div>
+
+    <div class="home-section__body">
+      <p class="method-intro">
+        对每个技术点，遵循以下纵深模型进行系统化研究，确保理解深度与攻防视角。
+      </p>
+
+      <ol class="method-list">
+        <li>
+          <span class="method-list__no">01</span>
+          <span class="method-list__text"><strong>协议原理</strong> — RFC 标准、设计哲学</span>
+        </li>
+        <li>
+          <span class="method-list__no">02</span>
+          <span class="method-list__text"><strong>实现机制</strong> — 内核实现、数据结构、状态机</span>
+        </li>
+        <li>
+          <span class="method-list__no">03</span>
+          <span class="method-list__text"><strong>数据包分析</strong> — Wireshark 抓包、字段解析、流程跟踪</span>
+        </li>
+        <li>
+          <span class="method-list__no">04</span>
+          <span class="method-list__text"><strong>攻击面分析</strong> — 漏洞成因、利用条件、攻击向量</span>
+        </li>
+        <li>
+          <span class="method-list__no">05</span>
+          <span class="method-list__text"><strong>防御方案</strong> — 检测规则、缓解措施、加固建议</span>
+        </li>
+        <li>
+          <span class="method-list__no">06</span>
+          <span class="method-list__text"><strong>对抗视角</strong> — 攻击者如何绕过防御，红队进阶技巧</span>
+        </li>
+      </ol>
+
+      <div class="method-example">
+        <p class="method-example__title">示例 · ARP 协议</p>
+        <ul>
+          <li><code>原理</code>RFC 826 定义的请求 / 响应机制</li>
+          <li><code>实现</code>广播请求、单播响应、缓存表老化</li>
+          <li><code>分析</code>Wireshark 抓包分析 Request / Reply 字段</li>
+          <li><code>攻击</code>ARP Spoofing 实现中间人攻击</li>
+          <li><code>防御</code>DAI（动态 ARP 检测）+ DHCP Snooping</li>
+          <li><code>对抗</code>为何静态 ARP 绑定无法防御 DAI 环境下的攻击？</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       IV — GOALS
+       ============================================================ -->
+  <section id="goals" class="home-section wrap">
+    <div class="home-section__aside">
+      <div class="section-index">IV</div>
+      <p class="kicker">Milestones</p>
+      <h2>学习目标</h2>
+    </div>
+
+    <div class="home-section__body">
+      <div class="goal-list">
+        <!-- 打磨：前四项包一层 .goal-list__thread，专门放左侧的里程碑连接线——
+             让它只贯穿这四个递进的目标，不延伸进独立的"最终目标"卡片 -->
+        <div class="goal-list__thread">
+        <div class="goal-item">
+          <div class="goal-item__no">01</div>
+          <div>
+            <div class="goal-item__title">从数据包到应用层</div>
+            <p class="goal-item__desc">掌握完整的网络通信过程，理解数据包在各层的封装、转发与解析。</p>
+          </div>
+        </div>
+
+        <div class="goal-item">
+          <div class="goal-item__no">02</div>
+          <div>
+            <div class="goal-item__title">操作系统内核与安全机制</div>
+            <p class="goal-item__desc">深入 Linux 调度 / 内存 / 文件系统，理解 Windows 认证、权限与安全策略。</p>
+          </div>
+        </div>
+
+        <div class="goal-item">
+          <div class="goal-item__no">03</div>
+          <div>
+            <div class="goal-item__title">企业级身份认证与访问控制</div>
+            <p class="goal-item__desc">掌握 NTLM、Kerberos、AD 域模型，理解企业环境中身份验证与授权的完整链路。</p>
+          </div>
+        </div>
+
+        <div class="goal-item">
+          <div class="goal-item__no">04</div>
+          <div>
+            <div class="goal-item__title">安全防御与攻防检测体系</div>
+            <p class="goal-item__desc">构建从网络边界到主机层面的纵深防御思维，理解攻击手法与检测响应。</p>
+          </div>
+        </div>
+        </div>
+
+        <div class="goal-item goal-item--final">
+          <div class="goal-item__no">→</div>
+          <div>
+            <div class="goal-item__title">最终目标</div>
+            <p class="goal-item__desc">
+              建立从网络底层、操作系统、认证机制到安全防御的完整知识体系，成为理解底层原理的网络安全工程师。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       V — ABOUT
+       ============================================================ -->
+  <section id="about" class="home-section wrap">
+    <div class="home-section__aside">
+      <div class="section-index">V</div>
+      <p class="kicker">About</p>
+      <h2>关于</h2>
+    </div>
+
+    <div class="home-section__body">
+      <div class="about-prose reveal" id="aboutCard">
+        <p class="about-prose__item">
+          <strong>Cyph3r</strong> · 企业安全方向技术研究者
+        </p>
+        <p class="about-prose__item">
+          专注于网络通信与系统安全的底层原理。相比只关注漏洞利用，我更关注通信过程、数据包流转、
+          操作系统机制、身份认证模型，以及企业网络架构与攻防检测体系。
+        </p>
+        <p class="about-prose__item">
+          通过持续学习和实验，逐步构建从物理层到应用层、从内核到安全策略的完整知识图谱。
+        </p>
+
+        <div class="repo-card about-prose__item">
+          <div class="repo-card__head">
+            <i class="fab fa-github"></i>
+            <div>
+              <a href="https://github.com/Cyph3rLab/Network-Engineering-Notes" target="_blank" rel="noopener" class="repo-card__name">
+                Network-Engineering-Notes
+              </a>
+              <p class="repo-card__desc">企业网络安全与内网渗透知识库</p>
+            </div>
+          </div>
+          <div class="repo-card__tags">
+            <span class="tag">TCP/IP</span>
+            <span class="tag">协议攻击</span>
+            <span class="tag">内网渗透</span>
+            <span class="tag">AD 域安全</span>
+            <span class="tag">Windows 安全</span>
+            <span class="tag">Linux 内核</span>
+          </div>
+        </div>
+
+        <div class="contact-row about-prose__item">
+          <a href="mailto:cyph3r1ab@outlook.com" class="contact-pill">
+            <i class="fas fa-envelope"></i>
+            cyph3r1ab@outlook.com
+          </a>
+          <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener" class="contact-pill">
+            <i class="fab fa-github"></i>
+            github.com/Cyph3rLab
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       CLOSING NOTE
+       ============================================================ -->
+  <section class="closing-note wrap">
+    <p class="reveal">“From packets to protocols,<br />from systems to security.”</p>
+    <span class="reveal reveal--2">— a note to self</span>
+  </section>
+
+</main>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer>
+  <div class="wrap footer__inner">
+    <!-- 打磨：装饰性打字，隐藏给读屏 -->
+    <p class="footer__cmd" aria-hidden="true">
+      <span class="p">$</span>
+      <span id="footer-typing" class="t"></span>
+      <span id="footer-cursor"></span>
+    </p>
+
+    <p class="footer__copy">
+      © 2026 <strong>Cyph3r</strong> · 网络安全学习笔记 · 无跟踪 · 无广告
+    </p>
+
+    <div class="footer__links">
+      <a href="mailto:cyph3r1ab@outlook.com">
+        <i class="fas fa-envelope"></i> cyph3r1ab@outlook.com
+      </a>
+      <a href="https://github.com/Cyph3rLab" target="_blank" rel="noopener">
+        <i class="fab fa-github"></i> Cyph3rLab
+      </a>
+      <a href="https://note.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener">
+        <i class="fas fa-blog"></i> 博客
+      </a>
+      <a href="https://alist.cyph3r1ab.dpdns.org/" target="_blank" rel="noopener">
+        <i class="fas fa-music"></i> 音乐
+      </a>
+    </div>
+  </div>
+</footer>
+
+<!-- 页面最下面：信息自由（汉字用像素揭示，拉丁副题用罗马铭文体） -->
+<section class="finale" id="finale" aria-labelledby="finaleWord">
+  <div class="wrap">
+    <div class="finale__ornament" aria-hidden="true">
+      <span class="finale__line"></span>
+      <span>MMXXVI</span>
+      <span class="finale__line"></span>
+    </div>
+    <button type="button" class="finale__reveal" id="finaleReveal" aria-controls="finaleWord">加载下一页</button>
+    <h2 class="finale__word" id="finaleWord" lang="zh-Hans">信息自由</h2>
+    <p class="finale__latin" lang="la">Libertas Informationis</p>
+    <p class="finale__cap">Freedom of Information</p>
+  </div>
+</section>
+
+<!-- 打磨：回到顶部——用导航栏同款亚克力质感，滚够一屏才出现，不在首屏碍事 -->
+<button type="button" class="to-top" id="toTop" aria-label="回到顶部">
+  <i class="fas fa-arrow-up" aria-hidden="true"></i>
+</button>
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  // 打磨：提到最前面。原先它声明在脚本中段，打字机 / 计数器等更早执行的代码读到的是 undefined
+  var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // 脚本接手：之后 CSS 才会把"未画"的线置为初态（脚本挂了就保持可见）
+  if ('IntersectionObserver' in window) document.documentElement.classList.add('motion-ready');
+
+  /* ==========================================================
+     打磨：bootGate —— 加载遮罩上演期间，把"进入视口才播"的动画推迟到
+     遮罩淡出之后，否则它们会在不透明遮罩背后空放一遍。
+     原理：加载态在 → 等 seclog:boot-done 事件；否则立即执行。
+     ========================================================== */
+  function bootGate(fn) {
+    if (document.documentElement.classList.contains('booting')) {
+      document.addEventListener('seclog:boot-done', fn, { once: true });
+    } else {
+      fn();
+    }
+  }
+
+  /* ==========================================================
+     PIXEL REVEAL 工厂（参照 freedom.gov）
+     原站：标题在 WebGL 里渲染，静止时是像素马赛克，鼠标划过处按速度变清晰，
+     速度退去后慢慢糊回去。这里把它做成可复用的函数，目前只有页面最下面的
+     「信息自由」在用（首页主标题刻意保持原样，不加这个效果）。
+     流程：DOM 文字 → 2D canvas 纹理 → WebGL 按"鼠标流速"决定像素块大小。
+     原站的 flowmap 是 GPU 乒乓渲染；这里网格只有 64 列，直接在 CPU 上算更简单，
+     每帧只上传一张 64×N 的单通道强度图，且没有能量时 rAF 会停下，不空耗 GPU。
+
+     选项：
+       host / hideEl / textRoot / fontEl   画布盖住谁、给谁加 .px-on 把文字藏起来、
+                                           从谁身上逐字取排版、用谁的字号定块大小
+       canvasClass, mount(canvas)          画布的类名、怎么挂到页面上
+       idleRatio / idleRatioCoarse         静止时块边长 ÷ 字号（桌面 / 触屏）
+       intro  'decay'   从"全清晰"开始衰减（和 DOM 文字交接时看不出切换）
+              'resolve' 从很粗的块解析到静止大小（「信息自由」用这个）
+       pendingClass                        可选：WebGL 确认可用后先把 DOM 文字藏起来，
+                                           等 start 时再交给画布（用于"滚到才出现"的场景）
+       when(go)                            决定什么时候开始：调用 go() 即开始
+     返回 null 表示没启用（关了动效 / 没有 WebGL）：此时页面还是原样的文字。
+     ========================================================== */
+  function createPixelReveal(o) {
+    if (prefersReducedMotion) return null;
+    var host = o.host, hideEl = o.hideEl, textRoot = o.textRoot, fontEl = o.fontEl || o.hideEl;
+    if (!host || !hideEl || !textRoot) return null;
+
+    var canvas = document.createElement('canvas');
+    canvas.className = o.canvasClass;
+    canvas.setAttribute('aria-hidden', 'true');
+    var gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false });
+    if (!gl) return null;                              // 没有 WebGL：保持原样的文字
+
+    function compile(type, src) {
+      var s = gl.createShader(type);
+      gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    }
+    var prog, tText, tFlow, loc = {};
+    try {
+      prog = gl.createProgram();
+      gl.attachShader(prog, compile(gl.VERTEX_SHADER,
+        'attribute vec2 aPos; varying vec2 vUv;' +
+        'void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }'));
+      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER,
+        'precision mediump float;' +
+        'uniform sampler2D uText; uniform sampler2D uFlow;' +
+        'uniform vec2 uRes; uniform float uPixel;' +
+        'varying vec2 vUv;' +
+        'void main(){' +
+        '  float intensity = texture2D(uFlow, vUv).r;' +
+        '  float t = smoothstep(0.0, 1.0, intensity);' +
+        '  float px = mix(uPixel, 1.0, t);' +                    // 没有鼠标 = 马赛克；有鼠标 = 清晰
+        '  vec2 cell = vec2(px) / uRes;' +                       // 方形像素块
+        '  vec2 uv = (floor(vUv / cell) + 0.5) * cell;' +
+        '  uv = t >= 0.999 ? vUv : uv;' +                         // 完全揭开时用原 UV，避免量化残影
+        '  gl_FragColor = texture2D(uText, uv);' +
+        '}'));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('link');
+    } catch (err) { return null; }
+    gl.useProgram(prog);
+
+    var buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+    var aPos = gl.getAttribLocation(prog, 'aPos');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+    ['uText', 'uFlow', 'uRes', 'uPixel'].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+
+    function makeTex(unit) {
+      var t = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      return t;
+    }
+    tText = makeTex(0); tFlow = makeTex(1);
+    gl.uniform1i(loc.uText, 0); gl.uniform1i(loc.uFlow, 1);
+    gl.clearColor(0, 0, 0, 0);
+
+    // WebGL 确认可用 → 才把 DOM 文字先藏起来（失败路径都在上面 return 了，不会把文字锁成透明）
+    var pendingCls = o.pendingClass || null;
+    if (pendingCls) hideEl.classList.add(pendingCls);
+    function giveUp() { if (pendingCls) hideEl.classList.remove(pendingCls); }
+
+    /* ---- 文字纹理：逐字取 Range 矩形，按各自的 computed 字体 / 颜色重画 ---- */
+    var textCanvas = document.createElement('canvas');
+    var tctx = textCanvas.getContext('2d');
+    var dpr = 1, boxW = 0, boxH = 0, fontPx = 40;
+
+    function paintDomText(ctx, hostRect) {
+      var walker = document.createTreeWalker(textRoot, NodeFilter.SHOW_TEXT);
+      var range = document.createRange(), node;
+      while ((node = walker.nextNode())) {
+        var el = node.parentElement, cs = getComputedStyle(el);
+        var fs = parseFloat(cs.fontSize);
+        ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + fs + 'px ' + cs.fontFamily;
+        ctx.fillStyle = cs.color;                       // 用的是 color，不是被藏起来的 text-fill-color
+        ctx.textBaseline = 'alphabetic';
+        var m = ctx.measureText('M');
+        var ascent = m.fontBoundingBoxAscent || fs * 0.88;
+        var txt = node.nodeValue;
+        for (var i = 0; i < txt.length; i++) {
+          var ch = txt.charAt(i);
+          if (/\s/.test(ch)) continue;
+          var code = txt.charCodeAt(i);
+          var len = (code >= 0xD800 && code <= 0xDBFF) ? 2 : 1;       // 代理对
+          range.setStart(node, i); range.setEnd(node, i + len);
+          var rc = range.getClientRects()[0];
+          if (rc) ctx.fillText(txt.substr(i, len), rc.left - hostRect.left, rc.top - hostRect.top + ascent);
+          i += len - 1;
+        }
+      }
+    }
+
+    function drawText() {
+      boxW = host.offsetWidth; boxH = host.offsetHeight;
+      if (!boxW || !boxH) return false;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var W = Math.round(boxW * dpr), H = Math.round(boxH * dpr);
+      textCanvas.width = canvas.width = W;
+      textCanvas.height = canvas.height = H;
+      fontPx = parseFloat(getComputedStyle(fontEl).fontSize) || 40;
+
+      tctx.clearRect(0, 0, W, H);
+      tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      paintDomText(tctx, host.getBoundingClientRect());
+
+      gl.viewport(0, 0, W, H);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tText);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textCanvas);
+      gl.uniform2f(loc.uRes, W, H);
+      return true;
+    }
+
+    /* ---- flowmap：64 列强度网格，鼠标速度注入、按时间衰减 ---- */
+    var COLS = 64, rows = 24, flow = new Float32Array(COLS * rows), flowBytes = new Uint8Array(COLS * rows);
+    var lastX = null, lastY = null, lastT = 0;
+    var idlePx = 4, introFrom = 40, introStart = 0, rafId = 0, lastFrame = 0;
+    var INTRO_MS = 1700;
+
+    function setGrid() {
+      rows = Math.max(12, Math.round(COLS * boxH / boxW));
+      flow = new Float32Array(COLS * rows);
+      flowBytes = new Uint8Array(COLS * rows);
+    }
+    function fillFlow(v) { for (var i = 0; i < flow.length; i++) flow[i] = v; }
+
+    function inject(clientX, clientY, burst) {
+      var r = host.getBoundingClientRect();
+      var now = performance.now();
+      var speed = burst ? 60 : 0;
+      if (!burst && lastX !== null) {
+        var dt = Math.max(14, now - lastT);
+        speed = Math.hypot(clientX - lastX, clientY - lastY) / dt * 16;      // ≈ 每帧移动多少 px
+      }
+      lastX = clientX; lastY = clientY; lastT = now;
+      if (speed < 0.5) return;
+      var amount = Math.min(1, speed / 26);
+      var radius = Math.max(80, fontPx * 1.4);                                // 影响半径（px）
+      var cw = r.width / COLS, ch = r.height / rows;
+      for (var y = 0; y < rows; y++) {
+        for (var x = 0; x < COLS; x++) {
+          var dx = r.left + (x + 0.5) * cw - clientX;
+          var dy = r.top + (y + 0.5) * ch - clientY;
+          var d = Math.hypot(dx, dy);
+          if (d > radius) continue;
+          var k = 1 - d / radius; k = k * k * (3 - 2 * k);                     // smoothstep 衰减，同原站 falloff
+          var i = y * COLS + x;
+          flow[i] = Math.min(1.4, flow[i] + amount * k * 0.7);
+        }
+      }
+      kick();
+    }
+
+    function frame(ts) {
+      rafId = 0;
+      var dt = Math.min(64, ts - (lastFrame || ts)); lastFrame = ts;
+      // 衰减：原站每帧 ×0.92，这里按时间折算，高刷屏上手感一致
+      var decay = Math.pow(0.92, dt / 16.67), energy = 0;
+      for (var i = 0; i < flow.length; i++) {
+        var v = flow[i] * decay;
+        if (v < 0.004) v = 0;
+        flow[i] = v; energy += v;
+        flowBytes[i] = Math.min(255, v * 255);
+      }
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, tFlow);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, COLS, rows, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, flowBytes);
+
+      // 'resolve' 开场：像素块从很粗解析到静止大小（ease-out-cubic，与原站同款曲线）
+      var px = idlePx, introLeft = false;
+      if (introStart) {
+        var p = Math.max(0, Math.min(1, (ts - introStart) / INTRO_MS));
+        var e = 1 - Math.pow(1 - p, 3);
+        px = introFrom + (idlePx - introFrom) * e;
+        introLeft = p < 1;
+        if (!introLeft) introStart = 0;
+      }
+      gl.uniform1f(loc.uPixel, px * dpr);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      // 还有能量或开场没播完才继续跑；否则停下，不空耗 GPU
+      if (energy > 0 || introLeft) rafId = requestAnimationFrame(frame);
+      else lastFrame = 0;
+    }
+    function kick() { if (!rafId) rafId = requestAnimationFrame(frame); }
+
+    function layout() {
+      var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      if (!drawText()) return false;
+      setGrid();
+      idlePx = Math.max(2, Math.round(fontPx * (coarse ? o.idleRatioCoarse : o.idleRatio)));
+      introFrom = Math.max(idlePx, Math.round(fontPx * 0.3));
+      return true;
+    }
+
+    var started = false;
+    function start() {
+      if (started) return;
+      if (!layout()) { giveUp(); return; }
+      started = true;
+      if (o.intro === 'resolve') introStart = performance.now();
+      else fillFlow(1.4);                              // 从"全清晰"开始：与 DOM 文字交接时看不出切换
+      o.mount(canvas);
+      hideEl.classList.add('px-on');
+      giveUp();                                        // 摘掉 pending（已由 .px-on 接手）
+      kick();
+      requestAnimationFrame(function () { canvas.classList.add('ready'); });
+
+      window.addEventListener('pointermove', function (e) { inject(e.clientX, e.clientY, false); }, { passive: true });
+      window.addEventListener('pointerdown', function (e) { inject(e.clientX, e.clientY, true); }, { passive: true });
+      document.addEventListener('mouseleave', function () { lastX = lastY = null; });
+
+      // 宽度变了（窗口缩放 / 换行点变了）→ 重画纹理；重画后从"清晰"再衰减，避免闪成块
+      if (window.ResizeObserver) {
+        var w0 = host.offsetWidth, h0 = host.offsetHeight, rt;
+        new ResizeObserver(function () {
+          if (host.offsetWidth === w0 && host.offsetHeight === h0) return;
+          w0 = host.offsetWidth; h0 = host.offsetHeight;
+          clearTimeout(rt);
+          rt = setTimeout(function () { if (layout()) { fillFlow(1.4); kick(); } }, 120);
+        }).observe(host);
+      }
+      // 主题切换：文字颜色变了，重画一次纹理
+      new MutationObserver(function () { if (drawText()) kick(); })
+        .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      // 上下文丢失：撤掉 canvas，回到 DOM 文字
+      canvas.addEventListener('webglcontextlost', function (ev) {
+        ev.preventDefault();
+        hideEl.classList.remove('px-on');
+        if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      });
+    }
+
+    // 等开始信号 + 字体到位（否则量出来的字形、换行点都是回退字体的）
+    var fontsReady = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    o.when(function () { fontsReady.then(start); });
+    return { start: start };
+  }
+
+  /* 页面最下面的「信息自由」：滚入视口时才开始 ——
+     装饰线展开、MMXXVI 淡入、汉字像素块由粗变细、拉丁副题字距收拢。 */
+  (function initFinale() {
+    var section = document.getElementById('finale');
+    var word = document.getElementById('finaleWord');
+    var reveal = document.getElementById('finaleReveal');
+    if (!section || !word || !reveal) return;
+
+    var seen = false, waiting = [];
+    function onSeen() {
+      if (seen) return;
+      seen = true;
+      section.classList.add('in', 'is-revealed');
+      waiting.forEach(function (f) { f(); });
+    }
+    createPixelReveal({
+      host: word, hideEl: word, textRoot: word,
+      canvasClass: 'finale-px', pendingClass: 'px-pending',
+      idleRatio: 0.045,         // 静止像素块加大，增强「信息自由」的模糊/马赛克感
+      idleRatioCoarse: 0.035,
+      intro: 'resolve',
+      mount: function (c) { word.appendChild(c); },
+      when: function (go) { if (seen) go(); else waiting.push(go); }
+    });
+
+    // 用户点击后才揭示大字，并启动像素解析效果。
+    reveal.addEventListener('click', onSeen);
+  })();
+
+  /* ==========================================================
+     TYPEWRITER (Hero)
+     ========================================================== */
+  var greetings = [
+    'hello, cyberspace.',
+    'you found /sec/log.',
+    'network security researcher.',
+    'studying protocols and systems.',
+    'from packets to security.'
+  ];
+  var typeEl = document.getElementById('typewriter');
+  var gIdx = 0, cIdx = 0, deleting = false;
+
+  function tick() {
+    if (!typeEl) return;
+    var current = greetings[gIdx];
+    if (deleting) {
+      cIdx--;
+      typeEl.textContent = current.slice(0, cIdx);
+      if (cIdx === 0) {
+        deleting = false;
+        gIdx = (gIdx + 1) % greetings.length;
+        setTimeout(tick, 420);
+        return;
+      }
+      setTimeout(tick, 32);
+    } else {
+      cIdx++;
+      typeEl.textContent = current.slice(0, cIdx);
+      if (cIdx === current.length) {
+        deleting = true;
+        setTimeout(tick, 2200);
+        return;
+      }
+      setTimeout(tick, 70 + Math.random() * 50);
+    }
+  }
+  /* 打磨：
+     · 加载遮罩上演时先别打 —— 否则遮罩一撤，眉标已经打到半句，像是错过了开头
+     · 关了动效：停在第一句，不再无限循环打字 / 删字 */
+  if (prefersReducedMotion) {
+    if (typeEl) typeEl.textContent = greetings[0];
+  } else {
+    bootGate(tick);
+  }
+
+  /* ==========================================================
+     HERO TITLE —— 手电筒聚光翻译 + 自适应字号
+     1) 鼠标移动 = 光斑移动，被照到的中文自动翻译为英文
+     2) 自动测量英文宽度，必要时收缩字号，确保永不裁切/遮挡
+     ========================================================== */
+  (function initSpotlightTitle() {
+    var title = document.getElementById('heroTitle');
+    if (!title) return;
+
+    var stack = title.querySelector('.title-stack');
+    var zhLayer = title.querySelector('.title-layer--zh');
+    var enLayer = title.querySelector('.title-layer--en');
+
+    /* 打磨：.hero__note 缓存一次，原先每轮循环里都 querySelector 一遍 */
+    var noteEl = document.querySelector('.hero__note');
+
+    /* ---------- A. 自适应字号：确保英文完整显示 ---------- */
+    var lastAvailW = -1;
+    var lastZhFs = -1;
+
+    /* 用 Range 直接量取单行文字的真实布局宽度（比 scrollWidth 准），
+       scrollWidth 在 flex 子项里会少算，导致按比例收缩后仍差几个像素。 */
+    function lineWidth(el) {
+      var rng = document.createRange();
+      rng.selectNodeContents(el);
+      return rng.getBoundingClientRect().width;
+    }
+
+    /* 计算每一行各自可用的最大宽度。
+       英文比中文短，而且只在光斑内可见，所以可以借用标题右侧的空白把字号做大；
+       但如果某一行在垂直方向与右侧 aside 相交，这一行就不能越过 aside 的左边缘
+       （逐行判断 —— 第一行通常高于 aside，第二行会与它重叠）。 */
+    function lineLimits(lineBox) {
+      var kids = enLayer.children;
+      var titleRect = title.getBoundingClientRect();
+      var colW = stack.clientWidth;
+      var wide = colW;
+
+      var hero = title.closest ? title.closest('.hero') : null;
+      if (hero) {
+        var heroCs = window.getComputedStyle(hero);
+        var heroRight = hero.getBoundingClientRect().right -
+                        (parseFloat(heroCs.paddingRight) || 0);
+        wide = Math.max(colW, heroRight - titleRect.left);
+      }
+
+      var noteRect = noteEl ? noteEl.getBoundingClientRect() : null;
+      var safeW = noteRect ? Math.max(120, noteRect.left - titleRect.left - 16) : wide;
+
+      var limits = [];
+      for (var i = 0; i < kids.length; i++) {
+        var lim = wide;
+        if (noteRect) {
+          var top = titleRect.top + i * lineBox;
+          if (top + lineBox > noteRect.top + 2 && top < noteRect.bottom - 2) lim = safeW;
+        }
+        limits.push(Math.max(lim, 120));
+      }
+      return limits;
+    }
+
+    function fitEnTitle(force) {
+      if (!stack || !zhLayer || !enLayer) return;
+
+      var colW = stack.clientWidth;
+      var zhFs = parseFloat(window.getComputedStyle(zhLayer).fontSize);
+      if (!colW || !zhFs) return;
+
+      // 尺寸没变且已算过就不再测量（字体加载完成等场景用 force 强制重算）
+      if (!force && colW === lastAvailW && zhFs === lastZhFs &&
+          enLayer.style.fontSize) return;
+
+      // 先清除 inline 覆盖，回到 CSS 默认（最大）字号再测量
+      enLayer.style.fontSize = '';
+      enLayer.style.lineHeight = '';
+
+      // 行盒高度 = 中文行盒高度 → 两行英文与两行中文逐行对齐
+      var lineBox = parseFloat(window.getComputedStyle(zhLayer).lineHeight);
+      if (!lineBox) lineBox = zhFs * 1.1;
+      var limits = lineLimits(lineBox);
+
+      var fs = parseFloat(window.getComputedStyle(enLayer).fontSize);
+      if (!fs) return;
+
+      // 迭代收敛：每轮按各行实测宽度收缩，直到每一行都放得下
+      var kids = enLayer.children;
+      for (var pass = 0; pass < 6; pass++) {
+        var scale = 1;
+        var overflow = false;
+        for (var i = 0; i < kids.length; i++) {
+          var w = lineWidth(kids[i]);
+          var lim = limits[i] - 2;          // 2px 安全余量（亚像素 / 字距取整）
+          if (w > lim && w > 0) {
+            overflow = true;
+            if (lim / w < scale) scale = lim / w;
+          }
+        }
+        if (!overflow) break;
+        var next = fs * scale;
+        if (next >= fs - 0.01) break;       // 已收敛，避免死循环
+        fs = next;
+        enLayer.style.fontSize = fs + 'px';
+      }
+
+      enLayer.style.lineHeight = lineBox + 'px';
+
+      // 英文层宽度变了 → 光斑热区跟着重算
+      invalidateHot();
+
+      lastAvailW = colW;
+      lastZhFs = zhFs;
+    }
+
+    // 字体加载完成后执行，避免用回退字体测量导致偏差
+    if (document.fonts) {
+      if (document.fonts.ready) document.fonts.ready.then(function () { fitEnTitle(true); });
+      if (document.fonts.addEventListener) {
+        document.fonts.addEventListener('loadingdone', function () { fitEnTitle(true); });
+      }
+    }
+    window.addEventListener('load', function () {
+      fitEnTitle(true);
+      // 入场动画结束后再算一次：.reveal 的 translateY 会短暂影响相对位置测量
+      setTimeout(function () { fitEnTitle(true); }, 1600);
+    });
+
+    // 窗口尺寸变化时重算（节流）
+    var rzTimer;
+    window.addEventListener('resize', function () {
+      clearTimeout(rzTimer);
+      rzTimer = setTimeout(function () { fitEnTitle(true); }, 120);
+    }, { passive: true });
+
+    // 任何布局变化（主题切换、滚动条出现、缩放）都重新适配
+    if (window.ResizeObserver) {
+      var lastW = -1;
+      new ResizeObserver(function () {
+        if (stack.clientWidth === lastW) return;
+        lastW = stack.clientWidth;
+        fitEnTitle(true);
+      }).observe(stack);
+    }
+
+    /* ---------- B. 光斑跟随 ---------- */
+    var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    var rect = null;
+    var hot = null;
+    var rafId = null;
+    var pendingX = 0;
+    var pendingY = 0;
+    var tapTimer = null;
+
+    function refreshRect() {
+      rect = title.getBoundingClientRect();
+      hot = null;
+    }
+
+    /* 字号 / 布局变化后热区要重算（英文层宽度变了） */
+    function invalidateHot() {
+      rect = null;
+      hot = null;
+    }
+
+    /* 光斑“热区” = 标题本身 + 英文向右延伸出去的那一段。
+       英文比中文长得多（1920 宽下 827px vs 610px），如果只在 h1 上监听鼠标，
+       鼠标一移出 h1 就熄灭，英文末尾永远点不亮 —— 手感上就像撞到一堵墙。
+       纵向只取标题上下各 24px：扫到正文时不成矩形，避免把中文标题擦掉。 */
+    function hotZone() {
+      if (!rect) refreshRect();
+      if (!hot) {
+        var pad = 24;
+        var w = Math.max(rect.width, enLayer ? enLayer.offsetWidth : 0);
+        hot = {
+          left: rect.left - pad,
+          right: rect.left + w + pad,
+          top: rect.top - pad,
+          bottom: rect.bottom + pad
+        };
+      }
+      return hot;
+    }
+
+    function inHotZone(x, y) {
+      var z = hotZone();
+      return x >= z.left && x <= z.right && y >= z.top && y <= z.bottom;
+    }
+
+    function paint() {
+      rafId = null;
+      title.style.setProperty('--spot-x', pendingX + 'px');
+      title.style.setProperty('--spot-y', pendingY + 'px');
+    }
+
+    /* 点亮：把半径交还给 CSS（--spot-r 是 clamp(...)），光会自己"涨"开 */
+    function lightOn() {
+      if (title.style.getPropertyValue('--spot-r')) title.style.removeProperty('--spot-r');
+    }
+
+    function moveTo(clientX, clientY) {
+      if (!rect) refreshRect();
+      lightOn();
+      pendingX = clientX - rect.left;
+      pendingY = clientY - rect.top;
+      if (!rafId) rafId = requestAnimationFrame(paint);
+    }
+
+    /* 熄灭：位置留在原地，只把半径收到 0 —— 光"收"回去而不是硬切断。
+       （0 半径会让 radial-gradient 退化成纯末端色：中文层全显、英文层全隐，
+       正好就是熄灭状态；这里用 0.1px 是为了避开 0 的边界情况。） */
+    function lightOff() {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      title.style.setProperty('--spot-r', '0.1px');
+    }
+
+    // 监听范围放大到整个 hero，是否点亮由 inHotZone 判断
+    var hoverRoot = (title.closest && title.closest('.hero')) || title;
+
+    if (canHover) {
+      hoverRoot.addEventListener('mousemove', function (e) {
+        if (!inHotZone(e.clientX, e.clientY)) { lightOff(); return; }
+        moveTo(e.clientX, e.clientY);
+      });
+      hoverRoot.addEventListener('mouseleave', lightOff);
+    } else {
+      /* 触屏设备：点按点亮 3.6 秒后自动熄灭 */
+      title.style.cursor = 'pointer';
+      title.addEventListener('click', function (e) {
+        refreshRect();
+        moveTo(e.clientX, e.clientY);
+        clearTimeout(tapTimer);
+        tapTimer = setTimeout(lightOff, 3600);
+      });
+    }
+
+    window.addEventListener('resize', invalidateHot, { passive: true });
+    window.addEventListener('scroll', invalidateHot, { passive: true });
+
+    /* ---------- C. 自演示：首屏静置片刻后自动扫一遍 ----------
+       聚光翻译是整页最特别的一处交互，但唯一的提示只写在 console 里，
+       触屏用户没有 hover，更是完全无从发现。所以静置 2.6s 后自动演示一次：
+       用户一动鼠标 / 一滚动 / 一按键，立刻让位，绝不打搅。 */
+    (function initTitleDemo() {
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var seen = false;
+      var played = false;
+      var timer = null;
+      var raf = null;
+      var EVENTS = ['mousemove', 'mousedown', 'touchstart', 'wheel', 'keydown', 'scroll'];
+
+      try { seen = sessionStorage.getItem('sec-log-title-demo') === '1'; } catch (e) {}
+      if (seen) return;                       // 同一个标签页只演示一次
+
+      function stopAll() {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (raf) { cancelAnimationFrame(raf); raf = null; }
+      }
+
+      function yieldToUser() {                // 用户动过 → 永久放弃
+        stopAll();
+        EVENTS.forEach(function (ev) { window.removeEventListener(ev, yieldToUser, true); });
+      }
+
+      function setSpot(x, y) {
+        title.style.setProperty('--spot-x', x + 'px');
+        title.style.setProperty('--spot-y', y + 'px');
+      }
+
+      function play() {
+        if (played) return;
+        var r = title.getBoundingClientRect();
+        if (r.bottom < 120 || r.top > window.innerHeight - 120) return;  // 不在视口就不演
+        played = true;
+
+        var lineBox = parseFloat(window.getComputedStyle(zhLayer).lineHeight) || r.height / 2;
+        var midY = lineBox;                                   // 落在两行之间，两行一起亮
+        var span = Math.max(enLayer.offsetWidth, stack.clientWidth);
+
+        // 读 CSS 里的 clamp 值；unsupported @property 时拿不到数字，退回 120
+        var spotR = parseFloat(window.getComputedStyle(title).getPropertyValue('--spot-r'));
+        if (!isFinite(spotR) || spotR <= 0) spotR = 120;
+
+        lightOn();
+
+        if (reduce) {                                          // 关了动效：原地亮一下即可
+          setSpot(span * 0.45, midY);
+          timer = setTimeout(function () { timer = null; lightOff(); }, 1800);
+          return;
+        }
+
+        var DUR = 2200;
+        var from = -spotR;
+        var to = span + spotR * 0.4;                           // 略微扫出右侧即收
+        var t0 = null;
+
+        function frame(ts) {
+          if (t0 === null) t0 = ts;
+          var p = Math.min((ts - t0) / DUR, 1);
+          var e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;  // easeInOutQuad
+          setSpot(from + (to - from) * e, midY);
+          if (p < 1) { raf = requestAnimationFrame(frame); }
+          else { raf = null; lightOff(); }
+        }
+        raf = requestAnimationFrame(frame);
+      }
+
+      function arm() {
+        EVENTS.forEach(function (ev) {
+          window.addEventListener(ev, yieldToUser, { passive: true, capture: true });
+        });
+        timer = setTimeout(function () {
+          timer = null;
+          try { sessionStorage.setItem('sec-log-title-demo', '1'); } catch (e) {}
+          yieldToUser();
+          play();
+        }, 2600);
+      }
+      /* 打磨：计时从加载遮罩撤掉之后才开始。原先挂在 load 上，字体慢的时候
+         2.6s 内遮罩还没收场，光斑就在遮罩背后空扫了一遍，用户什么都没看到，
+         还被记成"已演示过"，这个标签页再也不会演。 */
+      bootGate(function () {
+        if (document.readyState === 'complete') arm();
+        else window.addEventListener('load', arm);
+      });
+    })();
+
+    /* ---------- D. 首次立即调用一次，防止闪烁 ---------- */
+    fitEnTitle();
+  })();
+
+  /* ==========================================================
+     THEME TOGGLE —— 只有 light / dark（单个圆形按钮，点击即切换）
+     ========================================================== */
+  var themeToggle = document.querySelector('.theme-toggle');
+  var root = document.documentElement;
+  var THEMES = ['light', 'dark'];
+
+  /* persist === false：只应用、不写入 localStorage。
+     页面加载时应用的"系统偏好"不该被当成用户的显式选择存下来，
+     否则之后系统主题变了，站点也不会再跟着走。 */
+  function setTheme(theme, animate, persist) {
+    if (animate !== false) {
+      document.body.classList.add('theme-anim');
+      setTimeout(function () {
+        document.body.classList.remove('theme-anim');
+      }, 700);
+    }
+    root.setAttribute('data-theme', theme);
+    if (persist !== false) {
+      try { localStorage.setItem('sec-log-theme', theme); } catch (e) {}
+    }
+    // 打磨：同步移动端地址栏配色
+    var meta = document.getElementById('themeColorMeta');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0c0b09' : '#f5efe2');
+    if (themeToggle) {
+      // 按钮不认识当前状态就废了 —— 用 aria-pressed + 动态标签说明"点下去会变成什么"
+      var isDark = theme === 'dark';
+      themeToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+      themeToggle.setAttribute('aria-label', isDark ? '切换到亮色主题' : '切换到暗色主题');
+    }
+  }
+
+  /* 切换主题：新主题从按钮处圆形扩散开；不支持 / 关了动效则走原有渐变 */
+  function switchTheme() {
+    var next = THEMES[(THEMES.indexOf(root.getAttribute('data-theme')) + 1) % THEMES.length];
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !document.startViewTransition) { setTheme(next, !reduce); return; }
+
+    var b = themeToggle ? themeToggle.getBoundingClientRect()
+                        : { left: window.innerWidth - 40, top: 30, width: 0, height: 0 };
+    var x = b.left + b.width / 2, y = b.top + b.height / 2;
+    var r = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+
+    root.classList.add('vt-theme');
+    var vt = document.startViewTransition(function () { setTheme(next, false); });
+    function done() { root.classList.remove('vt-theme'); }
+    vt.finished.then(done, done);
+    vt.ready.then(function () {
+      root.animate(
+        { clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)',
+                     'circle(' + r + 'px at ' + x + 'px ' + y + 'px)'] },
+        { duration: 760, easing: 'cubic-bezier(0.22, 0.8, 0.2, 1)',
+          pseudoElement: '::view-transition-new(root)' }
+      );
+    }, function () {});
+  }
+
+  if (themeToggle) {
+    themeToggle.addEventListener('click', switchTheme);
+  }
+
+  var initialTheme = 'light';
+  try {
+    var saved = localStorage.getItem('sec-log-theme');
+    if (saved === 'dark' || saved === 'light') {
+      initialTheme = saved;
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      // 打磨：没存过偏好时跟随系统
+      initialTheme = 'dark';
+    }
+  } catch (e) {}
+  setTheme(initialTheme, false, false);
+
+  // 没有显式选择过主题时，跟随系统的实时切换
+  try {
+    var sysMq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onSysChange = function (e) {
+      var s = null;
+      try { s = localStorage.getItem('sec-log-theme'); } catch (_) {}
+      if (s === 'dark' || s === 'light') return;
+      setTheme(e.matches ? 'dark' : 'light', true, false);
+    };
+    if (sysMq.addEventListener) sysMq.addEventListener('change', onSysChange);
+  } catch (e) {}
+
+  /* 键盘快捷键 T：亮 / 暗循环
+     打磨：排除组合键（Cmd/Ctrl+T 会开新标签页，不该顺手把主题也切了），
+     并覆盖 SELECT / contenteditable 这些输入场景 */
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var el = e.target;
+    var tag = (el.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (el.isContentEditable) return;
+    if (e.key === 't' || e.key === 'T') {
+      switchTheme();
+    }
+  });
+
+  /* ==========================================================
+     SCROLL REVEAL
+     注意：加载动画上演时，这段要等它演完再启动 —— 否则 .reveal 的入场会在
+     不透明遮罩背后空放一遍，等遮罩淡出时你只看到"已经在那儿"的静态页面。
+     ========================================================== */
+  function startReveals() {
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+          // 方向卡片：入场放完后换成跟手的快速过渡（否则 3D 倾斜会拖着 0.9s 的尾巴）
+          if (entry.target.classList.contains('dir-card') ||
+              entry.target.classList.contains('hero__note')) {
+            (function (el) { setTimeout(function () { el.classList.add('settled'); }, 1200); })(entry.target);
+          }
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(function (el) {
+      revealObserver.observe(el);
+    });
+  }
+
+  // 打磨：用统一的 bootGate 处理，避免每个观察器各写一遍判断
+  bootGate(startReveals);
+
+  /* goal items 交错显现
+     两个要点：
+     1) 原来的 delay = idx * 90 是按"索引"死算的 —— 不管你什么时候滚到第 5 项，
+        它都要先空白 360ms。错开（stagger）只在**一批同时进入**时才有意义，
+        所以改成按"同一次回调里一起进来的项目"错开：慢慢滚、一次只进一项时立即出现。
+     2) 原来 threshold: 0.12 且没有 rootMargin —— 元素刚从视口底边露出 14px 就开始播，
+        等你真正看到它动画已经放完了。这里把触发线往上收 10%，并且要求 15% 面积进入，
+        动画才会发生在你正看着的地方。 */
+  var goalObserver = new IntersectionObserver(function (entries) {
+    var batch = entries.filter(function (e) { return e.isIntersecting; });
+    batch.forEach(function (entry, i) {
+      var el = entry.target;
+      var delay = Math.min(i, 4) * 85;          // 同批最多错开 340ms
+      if (delay) {
+        setTimeout(function () { el.classList.add('visible'); }, delay);
+      } else {
+        el.classList.add('visible');
+      }
+      goalObserver.unobserve(el);
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -10% 0px' });
+
+  document.querySelectorAll('.goal-item').forEach(function (el) {
+    goalObserver.observe(el);
+  });
+
+  /* ==========================================================
+     ABOUT CARD（独立观察器）
+     ========================================================== */
+  var aboutCard = document.getElementById('aboutCard');
+  if (aboutCard) {
+    // 打磨：错落入场放完（最长 delay 0.30s + 0.6s）后加 .settled，
+    // 把 stagger delay 清掉并换回 repo-card 自己的 hover 过渡
+    function showAbout() {
+      if (aboutCard.classList.contains('visible')) return;
+      aboutCard.classList.add('visible');
+      setTimeout(function () { aboutCard.classList.add('settled'); }, 1100);
+    }
+    var aboutObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          showAbout();
+          aboutObserver.unobserve(aboutCard);
+        }
+      });
+    }, { threshold: 0.05 });
+    aboutObserver.observe(aboutCard);
+    if (aboutCard.getBoundingClientRect().top < window.innerHeight) {
+      showAbout();
+      aboutObserver.unobserve(aboutCard);
+    }
+  }
+
+  /* ==========================================================
+     NAV SCROLL EFFECT
+     ========================================================== */
+  var nav = document.getElementById('nav');
+
+  /* 导航滑动指示条：一根共享的线在链接间平滑移动/变宽，鼠标移开后
+     回到当前所在章节——比每个链接各自淡入淡出一截更有"跟手"的质感。
+     纯增强：指示条是 JS 创建、追加进去的，JS 没跑的话 .nav__link::after
+     那套原生每链接下划线原样生效，不会出现"连哪条都没有"的情况。 */
+  var navLinksWrap = document.querySelector('.nav__links');
+  var navIndicator = null;
+  function moveIndicator(link) {
+    if (!navIndicator) return;
+    if (!link) { navIndicator.classList.remove('visible'); return; }
+    // 指示条是隐藏状态时第一次出现：位置瞬移到目标、只淡入，别从左上角斜着滑过来
+    var fresh = !navIndicator.classList.contains('visible');
+    if (fresh) navIndicator.style.transition = 'opacity 0.25s ease';
+    /* 窄屏下导航链接会换行 —— 指示条按链接自己的位置定（x + y），
+       不再默认贴在容器底部；y 用 transform，换行时也能平滑滑过去 */
+    navIndicator.style.transform = 'translate(' + link.offsetLeft + 'px,' +
+                                   (link.offsetTop + link.offsetHeight + 1) + 'px)';
+    navIndicator.style.width = link.offsetWidth + 'px';
+    navIndicator.classList.add('visible');
+    if (fresh) { void navIndicator.offsetWidth; navIndicator.style.transition = ''; }
+  }
+  if (navLinksWrap) {
+    navIndicator = document.createElement('span');
+    navIndicator.className = 'nav__indicator';
+    navIndicator.setAttribute('aria-hidden', 'true');
+    navLinksWrap.appendChild(navIndicator);
+    navLinksWrap.classList.add('has-indicator');
+    navLinksWrap.querySelectorAll('.nav__link').forEach(function (link) {
+      link.addEventListener('mouseenter', function () { moveIndicator(link); });
+      // 键盘 Tab 到链接时，指示条也跟过去（原先只有 hover 才有）
+      link.addEventListener('focus', function () { moveIndicator(link); });
+      link.addEventListener('blur', function () {
+        moveIndicator(navLinksWrap.querySelector('.nav__link[aria-current="location"]'));
+      });
+    });
+    navLinksWrap.addEventListener('mouseleave', function () {
+      moveIndicator(navLinksWrap.querySelector('.nav__link[aria-current="location"]'));
+    });
+    var navResizeTimer = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(navResizeTimer);
+      navResizeTimer = setTimeout(function () {
+        moveIndicator(navLinksWrap.querySelector('.nav__link[aria-current="location"]'));
+      }, 120);
+    }, { passive: true });
+  }
+
+  /* 导航高亮（scroll-spy）：当前所在章节的链接保持下划线，指示条跟着同步挪过去 */
+  var spyLinks = {};
+  document.querySelectorAll('.nav__link[href^="#"]').forEach(function (a) {
+    spyLinks[a.getAttribute('href').slice(1)] = a;
+  });
+  function clearSpy() {
+    Object.keys(spyLinks).forEach(function (k) { spyLinks[k].removeAttribute('aria-current'); });
+    moveIndicator(null);
+  }
+  var spyObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting || !spyLinks[entry.target.id]) return;
+      clearSpy();
+      spyLinks[entry.target.id].setAttribute('aria-current', 'location');
+      moveIndicator(spyLinks[entry.target.id]);
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  Object.keys(spyLinks).forEach(function (id) {
+    var sec = document.getElementById(id);
+    if (sec) spyObserver.observe(sec);
+  });
+
+  /* 滚动：导航底色 + 阅读进度线（rAF 合帧，一帧只算一次） */
+  var progressEl = document.getElementById('progress');
+  var scrollTick = false;
+  /* 目标里程碑连接线：进度不是"看过几屏"，是"这段 thread 卷走了多少" ——
+     thread 顶部到达视口 78% 高度时开始填，底部到达视口 32% 高度时填满。
+     缓存元素引用，避免每帧都查一次 DOM。 */
+  var goalThread = document.querySelector('.goal-list__thread');
+  function updateGoalThread() {
+    if (!goalThread) return;
+    var r = goalThread.getBoundingClientRect();
+    var vh = window.innerHeight;
+    var start = vh * 0.78, end = vh * 0.32;
+    var p = (start - r.top) / (r.height + (start - end));
+    goalThread.style.setProperty('--fill', Math.max(0, Math.min(1, p)).toFixed(3));
+  }
+
+  function onScroll() {
+    scrollTick = false;
+    var y = window.scrollY;
+    if (y > 60) nav.classList.add('scrolled');
+    else nav.classList.remove('scrolled');
+    if (progressEl) {
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      progressEl.style.transform = 'scaleX(' + (max > 0 ? Math.min(y / max, 1) : 0).toFixed(4) + ')';
+    }
+    updateGoalThread();
+    if (toTopBtn) toTopBtn.classList.toggle('visible', y > window.innerHeight * 0.9);
+    if (y < 240) clearSpy();
+  }
+  window.addEventListener('scroll', function () {
+    if (!scrollTick) { scrollTick = true; requestAnimationFrame(onScroll); }
+  }, { passive: true });
+  onScroll();
+
+  var toTopBtn = document.getElementById('toTop');
+  if (toTopBtn) {
+    toTopBtn.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+    });
+  }
+
+  /* 分隔线逐条画入：同一批进入视口的错开 90ms；等加载遮罩收场后再开始 */
+  bootGate(function () {
+    var drawObserver = new IntersectionObserver(function (entries) {
+      var batch = entries.filter(function (e) { return e.isIntersecting; });
+      batch.forEach(function (entry, i) {
+        var el = entry.target;
+        setTimeout(function () { el.classList.add('drawn'); }, Math.min(i, 5) * 90);
+        drawObserver.unobserve(el);
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+    // .drawn 现在同时驱动：章节分隔线 / 左栏入场、路线图卡片浮起、方法论逐行、章节分隔标签
+    document.querySelectorAll('.rule, .home-section, .roadmap-item, .method-list li').forEach(function (el) {
+      drawObserver.observe(el);
+    });
+  });
+
+  /* 示例卡逐行揭示：第一次进入视口时触发一次，看完就不会再演第二遍 */
+  bootGate(function () {
+    var exampleEl = document.querySelector('.method-example');
+    if (!exampleEl) return;
+    var exampleObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        exampleEl.classList.add('revealed');
+        exampleObserver.unobserve(exampleEl);
+      });
+    }, { threshold: 0.2 });
+    exampleObserver.observe(exampleEl);
+  });
+
+  /* ==========================================================
+     STAT COUNTERS
+     ========================================================== */
+  var countersAnimated = false;
+  var countersStarted = false;
+
+  function animateCounters() {
+    if (countersAnimated || countersStarted) return;
+    countersStarted = true;   // 打磨：计数进行中滚出又滚回，不会再叠开第二轮（数字会抖）
+    var counters = document.querySelectorAll('.stat__num[data-target]');
+    if (!counters.length) return;
+
+    if (prefersReducedMotion) {   // 关了动效：直接给终值
+      counters.forEach(function (c) {
+        c.textContent = (parseInt(c.dataset.target, 10) || 0) + (c.dataset.suffix || '');
+      });
+      countersAnimated = true;
+      return;
+    }
+
+    var done = 0;
+    counters.forEach(function (counter) {
+      var target = parseInt(counter.dataset.target, 10) || 0;
+      var suffix = counter.dataset.suffix || '';
+      var duration = 1600;
+      var start = null;
+
+      function step(ts) {
+        if (start === null) start = ts;
+        var p = Math.min((ts - start) / duration, 1);
+        var eased = 1 - Math.pow(1 - p, 3);
+        counter.textContent = Math.floor(eased * target) + (p === 1 ? suffix : '');
+        if (p < 1) {
+          requestAnimationFrame(step);
+        } else {
+          counter.textContent = target + suffix;
+          done++;
+          if (done === counters.length) countersAnimated = true;
+        }
+      }
+      setTimeout(function () { requestAnimationFrame(step); }, Math.random() * 260);
+    });
+  }
+
+  var statsObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting && !countersAnimated) animateCounters();
+    });
+  }, { threshold: 0.3 });
+
+  // 打磨：stats-bar 在首屏范围内（矮屏上会被遮罩盖着）—— 也走 bootGate
+  var statsBar = document.querySelector('.stats-bar');
+  if (statsBar) bootGate(function () { statsObserver.observe(statsBar); });
+
+  /* ==========================================================
+     SMOOTH NAV ANCHOR SCROLL
+     ========================================================== */
+  document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
+    anchor.addEventListener('click', function (e) {
+      var href = this.getAttribute('href');
+      if (!href || href === '#') return;
+      var target = document.querySelector(href);
+      if (!target) return;
+      e.preventDefault();
+      var navHeight = nav.offsetHeight + 18;
+      var targetPos = target.getBoundingClientRect().top + window.scrollY - navHeight;
+      window.scrollTo({
+        top: targetPos,
+        behavior: prefersReducedMotion ? 'auto' : 'smooth'
+      });
+
+      /* 地址栏同步成 #章节（不新增历史记录），并把焦点交给目标：
+         分享 / 刷新能回到同一处，读屏和键盘用户也会从该章节继续，而不是留在被点的链接上 */
+      try { if (history.replaceState) history.replaceState(null, '', href); } catch (err) {}
+      if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+      try { target.focus({ preventScroll: true }); } catch (err) { target.focus(); }
+
+      /* 到达反馈：目标章节的标题下划过一道强调线。
+         CSS 里带 0.4s 延迟，正好等平滑滚动走到位；连点同一个链接时先摘类、
+         强制重排再加回，保证每次都能重播。 */
+      if (!prefersReducedMotion && target.classList.contains('home-section')) {
+        target.classList.remove('arrive');
+        void target.offsetWidth;
+        target.classList.add('arrive');
+        clearTimeout(target.__arriveTimer);
+        target.__arriveTimer = setTimeout(function () { target.classList.remove('arrive'); }, 2400);
+      }
+    });
+  });
+
+  /* ==========================================================
+     BUTTON RIPPLE（点击波纹）
+     ========================================================== */
+  document.querySelectorAll('.button').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      // 打磨：关掉了动效就别再往 DOM 里塞/拆节点了
+      if (prefersReducedMotion) return;
+      var rect = this.getBoundingClientRect();
+      var ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      var size = Math.max(rect.width, rect.height);
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      this.appendChild(ripple);
+      setTimeout(function () { ripple.remove(); }, 700);
+    });
+  });
+
+  /* ==========================================================
+     卡片 3D 倾斜 + 光晕跟随（仅桌面端）
+     ========================================================== */
+  var isFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  if (isFinePointer) {
+    document.querySelectorAll('.dir-card').forEach(function (card) {
+      var rect = null;
+
+      card.addEventListener('mouseenter', function () {
+        rect = card.getBoundingClientRect();
+      });
+
+      card.addEventListener('mousemove', function (e) {
+        if (!rect) rect = card.getBoundingClientRect();
+        var x = e.clientX - rect.left;
+        var y = e.clientY - rect.top;
+
+        card.style.setProperty('--mx', x + 'px');
+        card.style.setProperty('--my', y + 'px');
+
+        // 打磨：光晕跟随保留（只是颜色），3D 倾斜属于位移类动效，关了动效就不做
+        if (prefersReducedMotion) return;
+
+        var cx = rect.width / 2;
+        var cy = rect.height / 2;
+        var rotX = ((y - cy) / cy) * -3;
+        var rotY = ((x - cx) / cx) * 3;
+
+        card.style.transform =
+          'perspective(1000px) rotateX(' + rotX.toFixed(2) + 'deg)' +
+          ' rotateY(' + rotY.toFixed(2) + 'deg) translateY(-4px)';
+      });
+
+      card.addEventListener('mouseleave', function () {
+        card.style.transform = '';
+        rect = null;
+      });
+    });
+
+    /* 打磨：.repo-card 也缓存 rect —— 原先每帧 mousemove 都 getBoundingClientRect()，
+       虽然它现在的 CSS 还没有消费 --mx/--my，但以后加光晕时这套缓存已经就位 */
+    document.querySelectorAll('.repo-card').forEach(function (card) {
+      var rect = null;
+
+      card.addEventListener('mouseenter', function () {
+        rect = card.getBoundingClientRect();
+      });
+
+      card.addEventListener('mousemove', function (e) {
+        if (!rect) rect = card.getBoundingClientRect();
+        card.style.setProperty('--mx', (e.clientX - rect.left) + 'px');
+        card.style.setProperty('--my', (e.clientY - rect.top) + 'px');
+      });
+
+      card.addEventListener('mouseleave', function () { rect = null; });
+    });
+
+    /* ----------------------------------------------------------
+       磁吸按钮 + HERO 网格视差：都属于"跟手但非必要"的装饰性位移，
+       关掉动效的用户两个都不该收到，统一用 prefersReducedMotion 挡在外面。
+       磁吸按钮：鼠标靠近主 CTA 时，按钮朝指针方向轻轻挪一点，
+       松手退场换成弹簧曲线弹回原位 —— 只给首屏唯一一个 CTA 用，
+       多了会腻，一个足够让人"感觉到"按钮在回应鼠标。
+       ---------------------------------------------------------- */
+    if (!prefersReducedMotion) {
+      document.querySelectorAll('.button--ink').forEach(function (btn) {
+        var rect = null;
+        var pull = 0.32;   // 跟手强度：越大位移越夸张，0.3 左右比较克制
+        /* 打磨：inline 的 transition 会整条顶掉 CSS 里的 `transition: all .35s`，
+           原先 hover 时背景色（墨色→强调色）和阴影是"啪"地切的。
+           这里把颜色类过渡一并写进去，只有 transform 用磁吸专用的曲线。 */
+        var COLOR_T = 'background-color 0.35s cubic-bezier(0.4,0,0.2,1), ' +
+                      'color 0.35s cubic-bezier(0.4,0,0.2,1), ' +
+                      'box-shadow 0.35s cubic-bezier(0.4,0,0.2,1)';
+
+        btn.addEventListener('mouseenter', function () {
+          rect = btn.getBoundingClientRect();
+          btn.style.transition = 'transform 0.15s ease-out, ' + COLOR_T;
+        });
+        btn.addEventListener('mousemove', function (e) {
+          if (!rect) rect = btn.getBoundingClientRect();
+          var dx = (e.clientX - (rect.left + rect.width / 2)) * pull;
+          var dy = (e.clientY - (rect.top + rect.height / 2)) * pull;
+          btn.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
+        });
+        btn.addEventListener('mouseleave', function () {
+          btn.style.transition = 'transform 0.5s var(--ease-spring), ' + COLOR_T;
+          btn.style.transform = '';
+          rect = null;
+        });
+      });
+
+      /* --------------------------------------------------------
+         HERO 网格视差：鼠标在首屏移动时，背景网点朝反方向轻微漂移，
+         制造"玻璃面板悬在网格上方"的纵深感。用 rAF + 缓动而不是直接
+         赋值，避免高频 mousemove 下位移是跳着走的。
+         -------------------------------------------------------- */
+      (function initHeroParallax() {
+        var heroEl = document.getElementById('hero');
+        if (!heroEl) return;
+        var raf = null, cx = 0, cy = 0, tx = 0, ty = 0;
+
+        function tick() {
+          cx += (tx - cx) * 0.08;
+          cy += (ty - cy) * 0.08;
+          heroEl.style.setProperty('--px', cx.toFixed(2) + 'px');
+          heroEl.style.setProperty('--py', cy.toFixed(2) + 'px');
+          if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05) {
+            raf = requestAnimationFrame(tick);
+          } else {
+            raf = null;
+          }
+        }
+        heroEl.addEventListener('mousemove', function (e) {
+          var r = heroEl.getBoundingClientRect();
+          tx = ((e.clientX - r.left) / r.width - 0.5) * -18;
+          ty = ((e.clientY - r.top) / r.height - 0.5) * -12;
+          if (!raf) raf = requestAnimationFrame(tick);
+        });
+        heroEl.addEventListener('mouseleave', function () {
+          tx = 0; ty = 0;
+          if (!raf) raf = requestAnimationFrame(tick);
+        });
+      })();
+    }
+  }
+
+  /* ==========================================================
+     FOOTER TYPING
+     ========================================================== */
+  (function initFooterTyping() {
+    var typingEl = document.getElementById('footer-typing');
+    var cursorEl = document.getElementById('footer-cursor');
+    if (!typingEl || !cursorEl) return;
+
+    var text = 'echo "from packets to protocols, from systems to security."';
+    var index = 0;
+    var isComplete = false;
+    var started = false;
+
+    function typeChar() {
+      if (index < text.length) {
+        typingEl.textContent += text.charAt(index);
+        index++;
+        setTimeout(typeChar, 34 + Math.random() * 46);
+      } else {
+        isComplete = true;
+        cursorEl.classList.add('done');
+      }
+    }
+
+    function startTyping() {
+      if (started || isComplete) return;
+      started = true;
+      if (prefersReducedMotion) {   // 打磨：关了动效就直接显示整句，不逐字敲
+        typingEl.textContent = text;
+        index = text.length;
+        isComplete = true;
+        cursorEl.classList.add('done');
+        return;
+      }
+      cursorEl.classList.remove('done');
+      setTimeout(typeChar, 320);
+    }
+
+    var footer = document.querySelector('footer');
+    if (!footer) return;
+
+    var footerObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && !isComplete) startTyping();
+      });
+    }, { threshold: 0.15 });
+
+    // 打磨：页脚在首屏之外时其实无所谓，但保持和其他观察器一致 —— 统一走 bootGate
+    bootGate(function () {
+      footerObserver.observe(footer);
+
+      if (footer.getBoundingClientRect().top < window.innerHeight) {
+        setTimeout(startTyping, 700);
+      }
+
+      window.addEventListener('load', function () {
+        if (!isComplete && footer.getBoundingClientRect().top < window.innerHeight) {
+          setTimeout(startTyping, 800);
+        }
+      });
+    });
+  })();
+
+  /* ==========================================================
+     BOOT —— 「标题即加载 · 原地打字」
+
+     它只干一件实事：盖住首屏衬线字体（Fraunces + Noto Serif SC）的加载与替换。
+     display=swap 会先拿回退字体把标题画出来、再跳一下，那一下才是真正难看的。
+     所以这里不是"假装加载"，是真的在等 document.fonts.ready。
+
+     流程：把加载态那块文字**摆到真标题的位置上** → 逐字打出（标点处多停一拍）
+          → 光标熄灭 → 硬切掉加载态、淡掉遮罩 → 世界在它周围浮现。
+
+     为什么不做"飞过去"的位移：早先版本把加载态摆在屏幕正中、再 FLIP 飞到标题处，
+     实测要斜着走约 255px（dx≈-197, dy≈-161）。这么大一块 68.8px 的字横跨四分之一屏
+     飞过去，观感就成了"加载态"和"标题"两件事 —— 也就是割裂感。
+     **最丝滑的过渡就是不位移**：在终点打字，让页面反过来浮现到它周围。
+
+     打字立刻开始、不等字体（字体到了中途换字形，比静止时"跳"一下柔和）；
+     但**淡出遮罩必须等字体** —— 否则露出来的标题还会再跳一次。
+     ========================================================== */
+  (function initBoot() {
+    var docEl = document.documentElement;
+    var boot = document.getElementById('boot');
+    var bootTitle = document.getElementById('bootTitle');
+    var bootCmd = document.getElementById('bootCmd');
+    var bootCursor = document.getElementById('bootCursor');
+    var title = document.getElementById('heroTitle');
+    var mainEl = document.querySelector('main');
+
+    if (!docEl.classList.contains('booting')) return;
+    if (!boot || !bootTitle || !title) { docEl.classList.remove('booting'); return; }
+
+    // 主脚本活着 —— 把 head 里那道兜底闸撤了，避免它在演出中途抢走遮罩
+    clearTimeout(window.__bootBail);
+
+    var zhLayer = title.querySelector('.title-layer--zh');
+    var sizer = bootTitle.querySelector('.bt-sizer');
+    var MAX_WAIT = 2200;   // 字体再慢也不把人卡在这儿（要小于 head 里那道 3600 的兜底闸）
+    var HOLD = 120;        // 打完之后、起飞之前，给光标退场留的时间
+    var MORPH = 500;       // 飞进标题位置的时长（纯平移）
+    // 打字节奏：站内另两个打字机是 ~95ms/字（眉标）和 ~57ms/字（页脚），
+    // 那是短句；这里 15 个字要单独撑起整个加载态，所以取 ~34ms/字（平均 26+16/2）。
+    var TYPE_BASE = 26;
+    var TYPE_JIT = 16;
+    var PUNCT = 130;       // 标点额外停顿
+    var entered = false;
+    var finished = false;
+    var typed = false;
+    var fontsReady = false;
+
+    function handOver() {
+      if (finished) return;
+      finished = true;
+      // 把入场动画的终态写死，再摘掉 .booting —— 否则动画会在摘掉的一刻重新开跑
+      if (mainEl) {
+        mainEl.style.animation = 'none';
+        mainEl.style.opacity = '1';
+        mainEl.style.transform = 'none';
+      }
+      document.body.style.animation = 'none';
+      document.body.style.opacity = '1';
+      // 真实标题的内联 transition 是演出期间按住的，交还页面时得还回去，
+      // 否则它会一直带着 transition:none（以后任何动它的地方都不会过渡）
+      title.style.transition = '';
+      title.style.opacity = '';
+      title.style.transform = '';
+      docEl.classList.remove('booting');
+      document.removeEventListener('wheel', blockScroll);
+      document.removeEventListener('touchmove', blockScroll);
+      document.dispatchEvent(new CustomEvent('seclog:boot-done'));
+    }
+
+    // 演出期间锁住滚动：遮罩是不透明的，滚了也看不见，反而会让真标题在落位途中移位。
+    // 用 preventDefault 而不是 html{overflow:hidden} —— 后者会收走滚动条，
+    // 内容会横向跳一下，等遮罩淡出时正好被你看到。
+    function blockScroll(e) { e.preventDefault(); }
+    document.addEventListener('wheel', blockScroll, { passive: false });
+    document.addEventListener('touchmove', blockScroll, { passive: false });
+
+    // 不在顶部（浏览器恢复了滚动位置等）就别演，直接交还页面
+    if (!zhLayer || !sizer || window.scrollY > 8) { handOver(); return; }
+
+    /* ---------- 打字 ---------- */
+    var el1 = document.getElementById('btLine1');
+    var el2 = document.getElementById('btLine2');
+    var c1 = document.getElementById('btCaret1');
+    var c2 = document.getElementById('btCaret2');
+
+    function typeInto(el, text, caret, done) {
+      var i = 0;
+      (function step() {
+        if (finished) return;              // 已被跳过：别再往隐藏的节点里打字
+        if (i >= text.length) { done(); return; }
+        var ch = text.charAt(i);
+        el.textContent += ch;
+        i++;
+        var d = TYPE_BASE + Math.random() * TYPE_JIT;
+        if (ch === '，' || ch === '。' || ch === '、') d += PUNCT;   // 标点多停一拍，像真的在敲
+        setTimeout(step, d);
+      })();
+    }
+
+    /* ---------- 开打：**必须等字体到了才开始** ----------
+       这条是整个加载动画的关键。回退字体和 Noto Serif SC 的字形高度差很多：
+         真字体  文字盒 h=85.0 / 89.5，两行视觉间隙 −9.8px（贴着）
+         回退体  文字盒 h=68.5 / 68.5，两行视觉间隙 +7.2px（留缝）
+       行顶距都是 75，可字形在行盒里占的高度不同 —— 所以"字体没到就开打"会让
+       两行先疏散、字体一到又并拢，视觉上跳 17px。等字体再打字，从一开始就是对的。
+       等待这段时间由命令行 + 闪烁光标填着，画面不是死的。 */
+    var LEAD_MIN = 380;    // 命令行至少露这么久，否则字体已缓存时它会一闪而过
+    var t0 = performance.now();
+    var started = false;
+
+    // 打字前先把标题的光标藏起来，只留命令行光标在眨
+    if (c1) c1.style.display = 'none';
+    if (c2) c2.style.display = 'none';
+
+    function startTyping() {
+      if (started || finished) return;
+      started = true;
+      clearTimeout(guard);
+      if (bootCursor) bootCursor.style.display = 'none';   // 命令行光标退场，接力给标题
+
+      if (!(el1 && el2 && c1 && c2)) { typed = true; maybeEnter(); return; }
+
+      // 打字前标题的光标是藏着的 —— 否则等待期间会和命令行光标一起闪，两个光标太吵
+      c1.style.display = '';
+      c2.style.display = 'none';           // 第二行的光标等轮到它再亮
+      typeInto(el1, '在协议与系统之间，', c1, function () {
+        c1.classList.add('done');
+        c2.style.display = '';
+        typeInto(el2, '构建可靠的理解。', c2, function () {
+          typed = true;
+          maybeEnter();
+        });
+      });
+    }
+
+    function requestTyping() {
+      setTimeout(startTyping, Math.max(0, LEAD_MIN - (performance.now() - t0)));
+    }
+
+    /* ---------- 字体：到点开打，超时兜底 ---------- */
+    var guard = setTimeout(function () { fontsReady = true; requestTyping(); }, MAX_WAIT);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () { fontsReady = true; requestTyping(); });
+    } else {
+      fontsReady = true;
+      requestTyping();
+    }
+
+    /* 跳过：点击 / 按任意键 / 触屏轻点，直接把页面交还出来。
+       字体慢的时候遮罩最长要撑 2 秒多，用户不该被它拦着。
+       交还后页面按正常的 .reveal 流程浮现（boot-done 事件会照常触发）。 */
+    function skipBoot() {
+      if (finished) return;
+      clearTimeout(guard);
+      handOver();
+    }
+    ['click', 'keydown', 'touchstart'].forEach(function (ev) {
+      document.addEventListener(ev, skipBoot, { once: true, passive: true });
+    });
+
+    // 两个条件都满足才收尾：打完了 + 字体到了（否则量出来的落点是错的）
+    function maybeEnter() {
+      if (entered || !typed || !fontsReady) return;
+      enter();
+    }
+
+    function enter() {
+      if (entered || finished) return;
+      entered = true;
+      clearTimeout(guard);
+
+      if (c1) c1.classList.add('done');
+      if (c2) c2.classList.add('done');
+      setTimeout(morph, HOLD);
+    }
+
+    /* ---------- 落位：纯平移飞进 hero 标题的位置 ----------
+       量法用**块盒对块盒**：两侧字号/行高/字距同源（--title-*），所以
+         · 块顶 = 首行行盒顶 —— 与字体无关
+         · 块左 = 文字左缘（两边都是 text-align:left、无 padding）—— 与字体无关
+       不要用 Range 的文字内容盒：它的高度取决于字体上下伸度量，会差出约 7px。
+       也**不做缩放** —— 度量同源时缩放系数恒为 1，硬塞一个 scale 反而引入重采样，
+       落位处就会出现重影。 */
+    function morph() {
+      if (finished) return;   // 已被跳过：别再动真实标题的内联样式
+      // 真实标题先就位（藏在遮罩后面），并跳过它自己那次 reveal
+      title.classList.add('visible');
+      title.style.transition = 'none';
+      title.style.opacity = '1';
+      title.style.transform = 'none';
+
+      var to = zhLayer.getBoundingClientRect();
+      var from = bootTitle.getBoundingClientRect();
+      var dx = to.left - from.left;
+      var dy = to.top - from.top;
+
+      // 度量探针：两块文字宽度应当一致，差得多说明 --title-* 被谁单独改过
+      var rA = document.createRange(); rA.selectNodeContents(sizer);
+      var rB = document.createRange(); rB.selectNodeContents(zhLayer);
+      var wA = rA.getBoundingClientRect().width, wB = rB.getBoundingClientRect().width;
+      if (Math.abs(wA - wB) > 1) {
+        console.warn('[boot] 加载态与 hero 标题的排版度量不一致（文字宽 ' + wA.toFixed(1) +
+                     ' vs ' + wB.toFixed(1) + '）。检查 --title-fs / --title-lh / --title-ls。');
+      }
+
+      // 命令行先退场：它是"加载中"的指示，活儿干完了
+      if (bootCmd) {
+        bootCmd.style.transition = 'opacity .2s ease';
+        bootCmd.style.opacity = '0';
+      }
+
+      bootTitle.style.transformOrigin = 'top left';
+      void bootTitle.offsetWidth;              // 强制一次布局，确保过渡真的会跑
+      bootTitle.style.transition = 'transform ' + MORPH + 'ms cubic-bezier(0.32, 0.72, 0.24, 1)';
+      bootTitle.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+
+      setTimeout(swapOut, MORPH);
+    }
+
+    // 落位完成：加载态与真标题几何完全重合，**硬切**文字看不出来，只淡遮罩底色。
+    // 刻意不做文字交叉淡出 —— 两块文字哪怕只差一丁点栅格，叠着淡就会被看出重影。
+    function swapOut() {
+      if (finished) return;
+      bootTitle.style.display = 'none';             // 加载态硬切走
+      boot.style.transition = 'background-color .22s ease';
+      boot.style.backgroundColor = 'transparent';   // 只淡底色
+      setTimeout(handOver, 240);
+    }
+  })();
+
+  /* ==========================================================
+     LOG
+     ========================================================== */
+  console.log('%c/sec/log', 'color:#c2410c;font-weight:700;font-size:14px;');
+  console.log('⌨️  按 T 键切换主题（亮 / 暗）');
+  console.log('🔦 鼠标扫过主标题，中文自动翻译为英文（首屏会自动演示一次）');
+  console.log('📐 英文字号已自适应，永不裁切');
+  console.log('✨ 卡片 3D 倾斜 · 按钮波纹 · 光晕跟随 已启用');
+
+})();
+</script>
+</body>
+</html>
